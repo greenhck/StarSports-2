@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Niet EnterSports</title>
-  <link href="https://cdn.jsdelivr.net/npm/shaka-player@3.0.3/dist/controls.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.css" rel="stylesheet">
   <style>
     body {
       margin: 0;
@@ -20,10 +20,9 @@
       justify-content: center;
       align-items: center;
     }
-    #video {
+    #video-player {
       width: 100%;
       height: 100%;
-      object-fit: contain;
     }
     .logo {
       position: absolute;
@@ -63,7 +62,6 @@
       z-index: 20;
       justify-content: center;
       align-items: center;
-      display: flex;
       text-align: center;
     }
     .popup-content {
@@ -88,7 +86,7 @@
 </head>
 <body>
   <div class="video-container">
-    <video id="video" controls></video>
+    <div id="video-player"></div>
     <div class="logo">
       <img src="https://raw.githubusercontent.com/AkashGillNiet/TNT3/refs/heads/main/nes.png" alt="Logo">
     </div>
@@ -104,6 +102,7 @@
       </select>
     </div>
   </div>
+
   <div class="popup" id="popup">
     <div class="popup-content">
       <h2>Join our Telegram Channel</h2>
@@ -111,45 +110,61 @@
       <button id="already-joined">Already Joined</button>
     </div>
   </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/3.0.3/shaka-player.compiled.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
   <script>
-    const streamUrl = "https://vkvsd14.okcdn.ru/cmaf/7465941011175/sig/1k6d45YmwAo/srcIp/43.205.141.86/urls/185.226.53.94/expires/1735618334937/clientType/13/srcAg/CHROME/fromCache/1/mid/9161388141543/id/7465941011175/get/hls_9161388141543.yi5Gc1pbmz0.m3u8";
+    // Break the stream URL into parts
+    const streamBaseUrl = "https://vkvsd14.okcdn.ru";  // Base URL
+    const streamPath = "/cmaf/7465941011175/sig/1k6d45YmwAo/srcIp/43.205.141.86/urls/185.226.53.94/expires/1735618334937/clientType/13/srcAg/CHROME/fromCache/1/mid/9161388141543/id/7465941011175/get/COfXpOrQigIQ6AcYBjIICgYIgA8QuAg6BAjE2AJaBggDEAIoF2ICCCDRKZ55d-9Jng/track.m3u8";  // Stream path
 
-    const player = new shaka.Player(document.getElementById('video'));
-    player.addEventListener('error', (event) => {
-      console.error('Error code', event.detail.code, 'object', event.detail);
+    // Combine URL parts dynamically
+    const streamUrl = streamBaseUrl + streamPath; // Complete URL
+
+    // Initialize Clappr Player
+    const player = new Clappr.Player({
+      source: streamUrl,
+      parentId: "#video-player",
+      autoPlay: true,
+      height: "100%",
+      width: "100%",
+      mute: false,
+      playback: {
+        playInline: true,
+        preload: "auto",
+      },
+      mediacontrol: {
+        seekbar: "#FFF",
+        buttons: "#FFF",
+      },
     });
 
-    player.load(streamUrl).then(() => {
-      console.log('The video has been loaded!');
-    }).catch((error) => {
-      console.error('Error loading the video:', error);
-    });
+    // Handle quality selection
+    const qualitySelect = document.getElementById("quality");
+    qualitySelect.addEventListener("change", (event) => {
+      const selectedQuality = event.target.value;
 
-    const qualitySelect = document.getElementById('quality');
-    qualitySelect.addEventListener('change', () => {
-      const selectedQuality = qualitySelect.value;
-
-      if (selectedQuality === 'auto') {
-        player.configure({ abr: { enabled: true } });
+      if (selectedQuality === "auto") {
+        // Reset to auto quality handling
+        player.configure({ playback: { quality: 'auto' } });
       } else {
-        player.configure({ abr: { enabled: false } });
-
-        const tracks = player.getVariantTracks();
-        const resolutionMap = {
-          144: 144,
-          240: 240,
-          360: 360,
-          480: 480,
-          720: 720,
-          1080: 1080,
-        };
-
-        const chosenTrack = tracks.find(track => track.height === resolutionMap[selectedQuality]);
-        if (chosenTrack) player.selectVariantTrack(chosenTrack, true);
+        // Adjust the quality if the option is selected
+        player.configure({ playback: { quality: selectedQuality } });
       }
     });
 
+    // Sniffer detection: Check for any sniffers and display a message
+    function detectSniffer() {
+      const isSnifferDetected = /curl|wget|httpclient|postman|python-requests/i.test(navigator.userAgent);
+      if (isSnifferDetected) {
+        alert('Sniffer detected. Access restricted.');
+        window.location.href = "about:blank"; // Redirect to a blank page
+      }
+    }
+
+    // Call sniffer detection on page load
+    detectSniffer();
+
+    // Show popup on load
     window.onload = function() {
       document.getElementById('popup').style.display = 'flex';
     };
