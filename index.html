@@ -114,11 +114,10 @@
   <script src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
   <script>
     // Break the stream URL into parts
-    const streamBaseUrl = "https://vkvsd14.okcdn.ru";  // Base URL
-    const streamPath = "/cmaf/7465941011175/sig/1k6d45YmwAo/srcIp/43.205.141.86/urls/185.226.53.94/expires/1735618334937/clientType/13/srcAg/CHROME/fromCache/1/mid/9161388141543/id/7465941011175/get/COfXpOrQigIQ6AcYBjIICgYIgA8QuAg6BAjE2AJaBggDEAIoF2ICCCDRKZ55d-9Jng/track.m3u8";  // Stream path
-
+    const streamBaseUrl = "https://vkvsd63.okcdn.ru/cmaf/7465941011175/sig/0h3V-DFl1cc/srcIp/13.232.246.163/urls/185.226.53.94/expires/1736092040564/clientType/13/srcAg/CHROME/fromCache/1/mid/9161388141543/id/7465941011175/get/COfXpOrQigIQ6AcYBjIICgYIgA8QuAg6BAjE2AJaBggDEAIoF2ICCCDRKZ55d-9Jng/track.m3u8";  // Base URL
+  
     // Combine URL parts dynamically
-    const streamUrl = streamBaseUrl + streamPath; // Complete URL
+    const streamUrl = streamBaseUrl; // Complete URL
 
     // Initialize Clappr Player
     const player = new Clappr.Player({
