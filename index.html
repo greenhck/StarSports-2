@@ -1,181 +1,352 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Niet EnterSports</title>
-  <link href="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.css" rel="stylesheet">
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: #000;
-      height: 100%;
-    }
-    .video-container {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    #video-player {
-      width: 100%;
-      height: 100%;
-    }
-    .logo {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10;
-    }
-    .logo img {
-      width: 100px;
-      height: auto;
-    }
-    .quality-select {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 15;
-    }
-    .quality-select select {
-      background-color: #2c2c2c;
-      color: #fff;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 5px;
-      font-size: 14px;
-      cursor: pointer;
-    }
-    .popup {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(5px);
-      display: none;
-      z-index: 20;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-    }
-    .popup-content {
-      background-color: #2c2c2c;
-      color: #fff;
-      padding: 30px;
-      border-radius: 10px;
-      width: 80%;
-      max-width: 500px;
-    }
-    .popup button {
-      background-color: #6a4e23;
-      color: #fff;
-      border: none;
-      padding: 10px 20px;
-      margin: 10px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CricketSparx Live Stream</title>
+    <!-- Tailwind CSS CDN for professional and responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Dark background */
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+        }
+        /* Custom CSS for Ticker Animation */
+        .ticker-item {
+            display: inline-block;
+            white-space: nowrap;
+            animation: ticker-move 15s linear infinite; /* Adjust speed here */
+        }
+
+        /* Keyframes for right-to-left continuous scroll */
+        @keyframes ticker-move {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* Style for the video player to ensure it's edge-to-edge */
+        #videoPlayer {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16 / 9; /* Maintain standard video aspect ratio */
+            display: block;
+        }
+
+        /* Arrow styling for the info popup */
+        .arrow-up:before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            right: 18px;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 10px solid #2d3748; /* Arrow color matching popup background */
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
 </head>
-<body>
-  <div class="video-container">
-    <div id="video-player"></div>
-    <div class="logo">
-      <img src="https://raw.githubusercontent.com/AkashGillNiet/TNT3/refs/heads/main/nes.png" alt="Logo">
-    </div>
-    <div class="quality-select">
-      <select id="quality">
-        <option value="auto">Auto</option>
-        <option value="144">144p</option>
-        <option value="240">240p</option>
-        <option value="360">360p</option>
-        <option value="480">480p</option>
-        <option value="720">720p</option>
-        <option value="1080">1080p</option>
-      </select>
-    </div>
-  </div>
+<body class="min-h-screen">
 
-  <div class="popup" id="popup">
-    <div class="popup-content">
-      <h2>Join our Telegram Channel</h2>
-      <button id="join-now">Join Now</button>
-      <button id="already-joined">Already Joined</button>
-    </div>
-  </div>
+    <!-- Header (Fixed Top) -->
+    <header class="flex justify-between items-center w-full px-4 py-3 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-20 shadow-lg">
+        <!-- Left: Logo -->
+        <a href="/" class="flex items-center space-x-2">
+            <img src="https://i.ibb.co/XkvSyqy7/transparent-logo-cricketsparx-rocket.png" alt="CricketSparx Logo" class="h-8 md:h-10">
+            <span class="text-xl md:text-2xl font-bold text-white tracking-wider hidden sm:block">CricketSparx</span>
+        </a>
 
-  <script src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
-  <script>
-    // Break the stream URL into parts
-    const streamBaseUrl = "https://tapmadtv.live/play.php?c=sky1nz";  // Base URL
-  
-    // Combine URL parts dynamically
-    const streamUrl = streamBaseUrl; // Complete URL
+        <!-- Right: Icons -->
+        <div class="flex items-center space-x-4 relative">
+            
+            <!-- Telegram Icon -->
+            <a href="https://t.me/Cricket_Sparx" target="_blank" class="text-white hover:text-blue-400 transition duration-150 p-2 rounded-full bg-gray-800/50">
+                <!-- Telegram Icon SVG -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.364 5.636l-1.414 1.414L18.364 5.636zM15 2h-6C5.13 2 2 5.13 2 9v6c0 3.87 3.13 7 7 7h6c3.87 0 7-3.13 7-7V9c0-3.87-3.13-7-7-7zM8 12.5l5.5-3.5L10 16l-2-3.5z"/>
+                </svg>
+            </a>
 
-    // Initialize Clappr Player
-    const player = new Clappr.Player({
-      source: streamUrl,
-      parentId: "#video-player",
-      autoPlay: true,
-      height: "100%",
-      width: "100%",
-      mute: false,
-      playback: {
-        playInline: true,
-        preload: "auto",
-      },
-      mediacontrol: {
-        seekbar: "#FFF",
-        buttons: "#FFF",
-      },
-    });
+            <!-- Info/Question Icon & Popup Container -->
+            <div id="info-icon-container" class="relative">
+                <button onclick="toggleInfoPopup()" class="text-white hover:text-yellow-400 transition duration-150 p-2 rounded-full bg-gray-800/50 focus:outline-none">
+                    <!-- Question Mark SVG -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </button>
 
-    // Handle quality selection
-    const qualitySelect = document.getElementById("quality");
-    qualitySelect.addEventListener("change", (event) => {
-      const selectedQuality = event.target.value;
+                <!-- Popup Content (Hidden by default) -->
+                <div id="info-popup" class="absolute hidden top-12 right-0 w-64 bg-gray-700/95 border border-gray-600 rounded-lg shadow-2xl p-4 text-sm z-30 transform transition-all duration-300 scale-95 opacity-0 origin-top-right">
+                    <!-- Arrow for animation -->
+                    <div class="arrow-up absolute top-0 right-3"></div>
+                    <p class="text-white font-semibold mb-2">Disclaimer</p>
+                    <p class="text-gray-300">We are not any host content. It is available publicly, we just serve it. We act only as a user agent.</p>
+                </div>
+            </div>
+        </div>
+    </header>
 
-      if (selectedQuality === "auto") {
-        // Reset to auto quality handling
-        player.configure({ playback: { quality: 'auto' } });
-      } else {
-        // Adjust the quality if the option is selected
-        player.configure({ playback: { quality: selectedQuality } });
-      }
-    });
+    <!-- Main Content Area -->
+    <main class="w-full">
+        <!-- Video Player Section (Edge-to-Edge) -->
+        <div id="streaming-container" class="w-full bg-black">
+            <video id="videoPlayer" controls autoplay class="object-cover"></video>
+        </div>
 
-    // Sniffer detection: Check for any sniffers and display a message
-    function detectSniffer() {
-      const isSnifferDetected = /curl|wget|httpclient|postman|python-requests/i.test(navigator.userAgent);
-      if (isSnifferDetected) {
-        alert('Sniffer detected. Access restricted.');
-        window.location.href = "about:blank"; // Redirect to a blank page
-      }
-    }
+        <!-- News Ticker and Settings Section -->
+        <div class="flex justify-between items-center w-full bg-gray-800 p-2 shadow-inner">
+            
+            <!-- Left: Live Updates Ticker -->
+            <div id="ticker-area" class="flex items-center flex-grow overflow-hidden h-6">
+                <!-- Live Icon SVG -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500 mr-2 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="12" r="4"></circle>
+                </svg>
+                <div id="ticker-text" class="text-sm font-medium text-gray-300 whitespace-nowrap overflow-hidden relative">
+                    <!-- Content will be inserted by JS and animated -->
+                    <span id="ticker-content" class="ticker-item">Fetching latest updates...</span>
+                </div>
+            </div>
 
-    // Call sniffer detection on page load
-    detectSniffer();
+            <!-- Right: Quality Settings Icon -->
+            <div class="relative flex-shrink-0">
+                <button onclick="toggleQualityPopup()" class="text-gray-300 hover:text-white transition duration-150 p-1 rounded-full focus:outline-none ml-4">
+                    <!-- Settings Gear SVG -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
 
-    // Show popup on load
-    window.onload = function() {
-      document.getElementById('popup').style.display = 'flex';
-    };
+                <!-- Quality Selection Popup (Hidden by default) -->
+                <div id="quality-popup" class="absolute hidden bottom-8 right-0 w-32 bg-gray-700 rounded-lg shadow-xl text-sm z-30 p-2 transform transition-all duration-200 origin-bottom-right">
+                    <p class="text-gray-300 font-bold mb-1 px-2">Quality</p>
+                    <div id="quality-options" class="flex flex-col space-y-1">
+                        <!-- Quality buttons will be inserted here by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    document.getElementById('join-now').onclick = function() {
-      window.open('https://t.me/SportsLiveLink18', '_blank');
-      document.getElementById('popup').style.display = 'none';
-    };
+        <!-- Temporary Message Box for HLS errors/alerts -->
+        <div id="message-box" class="fixed top-0 left-0 right-0 p-3 text-center bg-red-600 text-white font-semibold hidden z-50"></div>
 
-    document.getElementById('already-joined').onclick = function() {
-      document.getElementById('popup').style.display = 'none';
-    };
-  </script>
+    </main>
+
+
+    <script>
+        const video = document.getElementById('videoPlayer');
+        const qualityPopup = document.getElementById('quality-popup');
+        const qualityOptions = document.getElementById('quality-options');
+        const infoPopup = document.getElementById('info-popup');
+        const messageBox = document.getElementById('message-box');
+        
+        // --- Utility Functions ---
+
+        /** Shows a custom message box instead of alert() */
+        function showMessage(msg, duration = 4000) {
+            messageBox.textContent = msg;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, duration);
+        }
+
+        /** Toggle the Info Popup (Disclamer) */
+        function toggleInfoPopup() {
+            const isHidden = infoPopup.classList.contains('hidden');
+            if (isHidden) {
+                // Show with animation
+                infoPopup.classList.remove('hidden');
+                setTimeout(() => {
+                    infoPopup.classList.remove('scale-95', 'opacity-0');
+                    infoPopup.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            } else {
+                // Hide with animation
+                infoPopup.classList.remove('scale-100', 'opacity-100');
+                infoPopup.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    infoPopup.classList.add('hidden');
+                }, 300); // Wait for transition
+            }
+        }
+        
+        /** Toggle the Quality Popup */
+        function toggleQualityPopup() {
+            const isHidden = qualityPopup.classList.contains('hidden');
+            if (isHidden) {
+                qualityPopup.classList.remove('hidden');
+            } else {
+                qualityPopup.classList.add('hidden');
+            }
+        }
+
+
+        // --- HLS.js Implementation ---
+
+        const hls = new Hls();
+        let currentQualityLevel = -1; // -1 for auto
+
+        // Function to get the URL parameter
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        const hlsUrl = getQueryParam('url');
+
+        if (hlsUrl) {
+            if (Hls.isSupported()) {
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(video);
+
+                // Populate Quality Levels
+                hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                    const levels = hls.levels;
+                    
+                    // 1. Add Auto option
+                    const autoButton = document.createElement('button');
+                    autoButton.className = 'w-full text-left px-2 py-1 rounded-md text-green-400 bg-gray-600 hover:bg-gray-500 font-bold transition-colors';
+                    autoButton.textContent = 'Auto';
+                    autoButton.onclick = () => setQuality(-1);
+                    qualityOptions.appendChild(autoButton);
+
+                    // 2. Add specific resolution options
+                    levels.reverse().forEach((level, index) => { // Reverse to show highest quality first
+                        const levelIndex = level.id !== undefined ? level.id : levels.length - 1 - index; // Use HLS level ID or calculated index
+                        const button = document.createElement('button');
+                        button.className = 'w-full text-left px-2 py-1 rounded-md text-gray-200 hover:bg-gray-600 transition-colors';
+                        button.textContent = `${level.height}p`;
+                        button.onclick = () => setQuality(levelIndex);
+                        qualityOptions.appendChild(button);
+                    });
+                    
+                    // Set Auto as default selected style
+                    updateQualityButtonStyle(-1);
+                });
+
+                hls.on(Hls.Events.ERROR, function (event, data) {
+                    if (data.fatal) {
+                        showMessage(`HLS Fatal Error: ${data.details}. Trying to recover...`, 6000);
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                hls.destroy();
+                                break;
+                        }
+                    }
+                });
+
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native HLS Support (e.g., Safari/iOS)
+                video.src = hlsUrl;
+            } else {
+                 showMessage("Your browser does not support HLS streaming.");
+            }
+        } else {
+             showMessage("⚠️ No URL provided. Please add '?url=your_hls_link.m3u8' to the URL.", 10000);
+        }
+
+        /** Sets the HLS quality level and updates the button styles */
+        function setQuality(levelIndex) {
+            if (Hls.isSupported() && hls) {
+                hls.currentLevel = levelIndex;
+                currentQualityLevel = levelIndex;
+                updateQualityButtonStyle(levelIndex);
+                qualityPopup.classList.add('hidden');
+                showMessage(levelIndex === -1 ? 'Quality set to Auto.' : `Quality set to ${hls.levels[levelIndex].height}p.`);
+            }
+        }
+
+        /** Updates the style of the selected quality button */
+        function updateQualityButtonStyle(selectedLevel) {
+            const buttons = qualityOptions.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.classList.remove('bg-gray-500', 'font-bold', 'text-green-400');
+                button.classList.add('bg-gray-700', 'text-gray-200', 'hover:bg-gray-600');
+            });
+
+            if (selectedLevel === -1) {
+                buttons[0].classList.add('bg-gray-500', 'font-bold', 'text-green-400');
+                buttons[0].classList.remove('bg-gray-700', 'text-gray-200');
+            } else {
+                const selectedButton = Array.from(buttons).find(btn => btn.textContent.includes(hls.levels[selectedLevel]?.height + 'p'));
+                if (selectedButton) {
+                    selectedButton.classList.add('bg-gray-500', 'font-bold', 'text-green-400');
+                    selectedButton.classList.remove('bg-gray-700', 'text-gray-200');
+                }
+            }
+        }
+
+
+        // --- News Ticker Implementation ---
+
+        // Mock data structure as per user request (simulating updates.json fetch)
+        const updatesData = {
+            "last_updated": "October 16, 2025",
+            "headlines": [
+                { "news": "सेंसेक्स ने 83,000 का ऐतिहासिक आंकड़ा पार किया, निवेशकों में जबरदस्त उत्साह।" },
+                { "news": "दिल्ली-एनसीआर में अचानक मौसम ने करवट ली, कई इलाकों में बारिश का अलर्ट जारी।" },
+                { "news": "बिहार चुनाव के पहले चरण के लिए कई दिग्गजों ने आज नामांकन दाखिल किया।" },
+                { "news": "महिला क्रिकेटर स्मृति मंधाना ने वनडे में सबसे तेज 5000 रन पूरे कर नया विश्व रिकॉर्ड बनाया।" },
+                { "news": "एमसीएक्स पर सोने का भाव 1.27 लाख रुपये के नए ऑल टाइम हाई पर पहुंचा।" }
+            ]
+        };
+
+        const tickerContent = document.getElementById('ticker-content');
+        let currentHeadlineIndex = 0;
+
+        function startTicker() {
+            if (updatesData.headlines.length === 0) {
+                tickerContent.textContent = "No recent updates available.";
+                return;
+            }
+
+            // Create a sequence of headlines for the continuous marquee
+            const fullTickerText = updatesData.headlines.map(item => `★ ${item.news}`).join(' \u2022 ');
+            
+            // Repeat the text to ensure a seamless loop
+            tickerContent.textContent = `${fullTickerText} \u2022 ${fullTickerText}`;
+
+            // Add the custom animation class to start the continuous scroll
+            tickerContent.classList.add('ticker-item');
+            
+            // Use CSS variables for animation speed if needed, but for now, rely on fixed CSS
+        }
+        
+        // Start the ticker after a short delay
+        window.onload = () => {
+             startTicker();
+             // Optional: Hide all popups if clicking anywhere else
+             document.addEventListener('click', (e) => {
+                if (!document.getElementById('info-icon-container').contains(e.target)) {
+                    // Hide Info Popup if click is outside the icon/popup
+                    if (!infoPopup.classList.contains('hidden')) { toggleInfoPopup(); }
+                }
+                if (!document.querySelector('.relative.flex-shrink-0').contains(e.target)) {
+                    // Hide Quality Popup if click is outside the icon/popup
+                    if (!qualityPopup.classList.contains('hidden')) { toggleQualityPopup(); }
+                }
+            });
+        };
+
+    </script>
+
 </body>
 </html>
