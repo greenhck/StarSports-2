@@ -379,6 +379,12 @@
                     if (data.fatal) {
                         console.error(`HLS Fatal Error: ${data.details}.`, data);
                         showMessage(`HLS में गंभीर त्रुटि (Fatal Error): ${data.details}. पुनर्प्राप्त करने का प्रयास...`, 6000); 
+                        
+                        // Check for 403 Forbidden specifically
+                        if (data.details === "manifestLoadError" && data.response && data.response.code === 403) {
+                             showMessage("⛔ 403 Forbidden एरर: CDN ने इस डोमेन से एक्सेस ब्लॉक कर दिया है। प्रॉक्सी के बिना स्ट्रीम लोड नहीं हो सकती।", 10000);
+                        }
+
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
                                 hls.startLoad();
@@ -405,9 +411,8 @@
         /** Called when a match thumbnail is clicked - loads the ad-free stream */
         function loadStream(url, title) {
             if (url) {
-                // IMPORTANT: As per user request, NO proxy is used here. 
-                // This may result in 403 Forbidden errors due to CDN security policies.
-                showMessage(`स्ट्रीम लोड हो रही है: ${title} (Ad-free). प्रॉक्सी हटा दिया गया है।`);
+                // IMPORTANT: NO proxy is used here. This is a direct load.
+                showMessage(`स्ट्रीम लोड हो रही है: ${title} (Ad-free). यह सीधा URL लोड है।`);
                 loadHlsStream(url); // Direct URL used
             } else {
                 showMessage("इस इवेंट के लिए कोई स्ट्रीमिंग URL उपलब्ध नहीं है।");
@@ -650,13 +655,14 @@
             // 2. Initialize Tabs (Fancode matches)
             initializeTabs();
 
-            // 3. Load HLS Player (from URL parameter if available)
+            // 3. Load HLS Player (from URL parameter if available, as requested)
             const hlsUrl = getQueryParam('url');
             if (hlsUrl) {
                 // Since user requested no proxy, use the direct URL from the query parameter
                 loadHlsStream(hlsUrl);
+                showMessage("स्ट्रीम URL क्वेरी पैरामीटर से लोड हो रही है। (?url=)");
             } else {
-                showMessage("⚠️ कोई URL प्रदान नहीं किया गया है। कृपया URL में '?url=your_hls_link.m3u8' जोड़ें।", 10000);
+                showMessage("⚠️ कोई URL प्रदान नहीं किया गया है। कृपया URL में '?url=your_hls_link.m3u8' जोड़ें या नीचे दिए गए मैचों पर क्लिक करें।", 10000);
             }
         }
         
