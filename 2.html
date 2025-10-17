@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CricketSparx Live Stream</title>
+    <!-- Tailwind CSS CDN for professional and responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Dark background */
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden; /* Horizontal scrolling को रोकता है */
+        }
+        /* Custom CSS for Ticker Animation */
+        .ticker-item {
+            display: inline-block;
+            white-space: nowrap;
+            /* Ticker speed को 90s कर दिया गया है ताकि यह बहुत धीमी और पठनीय हो */
+            animation: ticker-move 90s linear infinite; 
+        }
+
+        /* Keyframes for right-to-left continuous scroll */
+        @keyframes ticker-move {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* Style for the video player to ensure it's edge-to-edge */
+        #videoPlayer {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16 / 9; /* Standard video aspect ratio बनाए रखता है */
+            display: block;
+        }
+
+        /* Arrow styling for the info popup (Disclaimer) */
+        #info-popup .arrow-up:before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            right: 18px;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 10px solid #2d3748; /* Arrow color matching popup background */
+        }
+        
+        /* UPDATED: White Directional Glow effect for the logo (coming from left like a torch) */
+        .logo-glow {
+            /* Simulating a bright, directional light source from the left (x-offset of 10px casts the glow to the right) */
+            filter: drop-shadow(10px 0px 30px rgba(255, 255, 255, 1)) 
+                    drop-shadow(0 0 5px rgba(255, 255, 255, 0.7)); 
+        }
+
+        /* Initial Popup background for full-screen overlay */
+        #initial-popup {
+            background-color: rgba(0, 0, 0, 0.95);
+            transition: opacity 0.5s ease-in-out;
+        }
+    </style>
+    <!-- Font Awesome CDN for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
+</head>
+<body class="min-h-screen">
+
+    <!-- Temporary Message Box for HLS errors/alerts (Fixed and Centered below shorter header) -->
+    <div id="message-box" class="fixed top-16 left-1/2 transform -translate-x-1/2 max-w-sm w-full p-3 bg-red-600/90 backdrop-blur-sm text-white font-semibold rounded-lg shadow-2xl hidden z-50 flex items-center justify-between">
+        <span id="message-text" class="flex-grow text-center"></span>
+        <button onclick="document.getElementById('message-box').classList.add('hidden')" class="ml-4 text-white hover:text-gray-200 focus:outline-none p-1 -my-1 rounded-full hover:bg-red-700 transition">
+            <!-- Close Icon (X) -->
+            <i class="fas fa-xmark text-lg"></i>
+        </button>
+    </div>
+
+
+    <!-- Mandatory Initial Popup (Full Screen Overlay) -->
+    <div id="initial-popup" class="fixed inset-0 flex flex-col justify-center items-center z-50 text-center p-4">
+        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-sm w-full border border-yellow-500/50">
+            <h2 class="text-3xl font-extrabold text-yellow-400 mb-4">Welcome to CricketSparx!</h2>
+            <p class="text-gray-300 mb-6">For uninterrupted experience and latest updates, please join our official Telegram channel.</p>
+            
+            <button onclick="handleInitialPopup(true)" class="w-full mb-3 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition duration-200 shadow-lg flex items-center justify-center space-x-2">
+                <!-- Telegram Icon (Font Awesome) -->
+                <i class="fab fa-telegram-plane h-5 w-5"></i>
+                <span>Join Telegram Now</span>
+            </button>
+            
+            <button onclick="handleInitialPopup(false)" class="w-full px-6 py-2 text-gray-400 hover:text-white transition duration-200">
+                Continue to Stream
+            </button>
+        </div>
+    </div>
+
+    <!-- Header (Fixed Top - Made shorter with py-2) -->
+    <header class="flex justify-between items-center w-full px-4 py-2 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-20 shadow-lg">
+        <!-- Left: Logo (Increased size and directional glow) -->
+        <a href="/" class="flex items-center space-x-2">
+            <!-- Logo size increased: h-12 md:h-16 -->
+            <img src="https://i.ibb.co/XkvSyqy7/transparent-logo-cricketsparx-rocket.png" alt="CricketSparx Logo" class="h-12 md:h-16 logo-glow">
+            <!-- Text hidden on mobile (hidden) and shown on screens bigger than small (sm:block) -->
+            <span class="text-xl md:text-2xl font-bold text-white tracking-wider hidden sm:block">CricketSparx</span>
+        </a>
+
+        <!-- Right: Icons -->
+        <div class="flex items-center space-x-4 relative">
+            
+            <!-- Telegram Icon (Font Awesome) -->
+            <a href="https://t.me/Cricket_Sparx" target="_blank" class="text-white hover:text-blue-400 transition duration-150 p-2 rounded-full bg-gray-800/50">
+                <i class="fab fa-telegram-plane text-2xl"></i>
+            </a>
+
+            <!-- Info/Question Icon & Popup Container (Font Awesome) -->
+            <div id="info-icon-container" class="relative">
+                <button onclick="toggleInfoPopup()" class="text-white hover:text-yellow-400 transition duration-150 p-2 rounded-full bg-gray-800/50 focus:outline-none">
+                    <i class="fas fa-circle-question text-xl"></i>
+                </button>
+
+                <!-- Popup Content (Hidden by default) -->
+                <div id="info-popup" class="absolute hidden top-12 right-0 w-64 bg-gray-700/95 border border-gray-600 rounded-lg shadow-2xl p-4 text-sm z-30 transform transition-all duration-300 scale-95 opacity-0 origin-top-right">
+                    <!-- Arrow for animation -->
+                    <div class="arrow-up absolute top-0 right-3"></div>
+                    <p class="text-white font-semibold mb-2">Disclaimer</p>
+                    <p class="text-gray-300">We are not any host content. It is available publicly, we just serve it. We act only as a user agent.</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area (Hidden until initial popup is dismissed) -->
+    <main id="main-content" class="w-full hidden">
+        <!-- Video Player Section (Edge-to-Edge) -->
+        <div id="streaming-container" class="w-full bg-black">
+            <video id="videoPlayer" controls autoplay class="object-cover"></video>
+        </div>
+
+        <!-- News Ticker and Settings Section -->
+        <div class="flex justify-between items-center w-full bg-gray-800 p-2 shadow-inner">
+            
+            <!-- Left: Live Updates Ticker (Red dot removed) -->
+            <div id="ticker-area" class="flex items-center flex-grow overflow-hidden h-6">
+                <!-- Live Icon (fas fa-circle) removed as requested -->
+                <div id="ticker-text" class="text-sm font-medium text-gray-300 whitespace-nowrap overflow-hidden relative">
+                    <!-- Content will be inserted by JS and animated -->
+                    <span id="ticker-content" class="ticker-item">Loading latest updates...</span>
+                </div>
+            </div>
+
+            <!-- Right: Quality Settings Icon -->
+            <div class="relative flex-shrink-0">
+                <button onclick="toggleQualityPopup()" class="text-gray-300 hover:text-white transition duration-150 p-1 rounded-full focus:outline-none ml-4">
+                    <!-- Settings Gear (Font Awesome) -->
+                    <i class="fas fa-gear text-xl"></i>
+                </button>
+
+                <!-- Quality Selection Popup (Hidden by default) -->
+                <div id="quality-popup" class="absolute hidden bottom-8 right-0 w-32 bg-gray-700 rounded-lg shadow-xl text-sm z-30 p-2 transform transition-all duration-200 origin-bottom-right">
+                    <p class="text-gray-300 font-bold mb-1 px-2">Quality</p>
+                    <div id="quality-options" class="flex flex-col space-y-1">
+                        <!-- Quality buttons will be inserted here by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: Tabs and Live Events Section (Edge-to-Edge) -->
+        <section class="w-full bg-gray-900/90 pt-1 pb-4">
+            <!-- Tabs Header -->
+            <div id="tabs-header" class="flex border-b border-gray-700/50 overflow-x-auto whitespace-nowrap px-4 sm:px-6">
+                <!-- Tab buttons will go here -->
+            </div>
+            
+            <!-- Tab Content (Matches Container) -->
+            <div id="tab-content" class="p-4 sm:p-6">
+                <!-- Fancode Matches Grid -->
+                <div id="fancode-content" class="match-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    <!-- Fancode matches will be rendered here -->
+                    <p id="fancode-loading" class="col-span-full text-center text-gray-400">Loading Fancode matches...</p>
+                </div>
+                
+                <!-- Other future tab contents (hidden by default) -->
+                <!-- The JS switchTab function will handle hiding/showing these -->
+            </div>
+        </section>
+        
+    </main>
+
+
+    <script>
+        // Global HLS instance
+        let hls = new Hls();
+        let currentQualityLevel = -1; // -1 for auto
+
+        const video = document.getElementById('videoPlayer');
+        const mainContent = document.getElementById('main-content');
+        const initialPopup = document.getElementById('initial-popup');
+        const qualityPopup = document.getElementById('quality-popup');
+        const qualityOptions = document.getElementById('quality-options');
+        const infoPopup = document.getElementById('info-popup');
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+        const tickerContent = document.getElementById('ticker-content');
+        
+        // --- Tab Configuration (New) ---
+        const TAB_CONFIG = {
+            'fancode': {
+                name: 'Fancode',
+                url: 'https://raw.githubusercontent.com/Odfinity/live-events/refs/heads/main/fancode/data.json',
+                renderer: renderFancodeMatches, // Function to render the data
+                elementId: 'fancode-content' // The ID of the HTML container for this tab's content
+            }
+            // Future tabs can be added here
+        };
+        let currentActiveTab = 'fancode';
+
+
+        // --- Utility Functions ---
+
+        /** Shows a custom message box instead of alert() */
+        function showMessage(msg, duration = 4000) {
+            messageText.textContent = msg; 
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                if (!messageBox.classList.contains('hidden')) {
+                    messageBox.classList.add('hidden');
+                }
+            }, duration);
+        }
+
+        /** Toggle the Info Popup (Disclamer) */
+        function toggleInfoPopup() {
+            const isHidden = infoPopup.classList.contains('hidden');
+            if (isHidden) {
+                // Show with animation
+                infoPopup.classList.remove('hidden');
+                setTimeout(() => {
+                    infoPopup.classList.remove('scale-95', 'opacity-0');
+                    infoPopup.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            } else {
+                // Hide with animation
+                infoPopup.classList.remove('scale-100', 'opacity-100');
+                infoPopup.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    infoPopup.classList.add('hidden');
+                }, 300); // Wait for transition
+            }
+        }
+        
+        /** Toggle the Quality Popup */
+        function toggleQualityPopup() {
+            const isHidden = qualityPopup.classList.contains('hidden');
+            if (isHidden) {
+                qualityPopup.classList.remove('hidden');
+            } else {
+                qualityPopup.classList.add('hidden');
+            }
+        }
+
+        /** Handles initial mandatory popup interaction */
+        function handleInitialPopup(shouldJoin) {
+            if (shouldJoin) {
+                // Open Telegram link in a new tab
+                window.open('https://t.me/Cricket_Sparx', '_blank');
+            }
+            
+            // Hide popup with fade-out effect
+            initialPopup.style.opacity = '0';
+            setTimeout(() => {
+                initialPopup.classList.add('hidden');
+                // Load the main content
+                mainContent.classList.remove('hidden');
+                // Start the application initialization (HLS, Ticker, Tabs)
+                initializeApp();
+            }, 500); // Wait for fade-out
+        }
+
+        // Function to get the URL parameter
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+        
+        // --- HLS.js Implementation (Refactored) ---
+
+        /** Sets the HLS quality level and updates the button styles */
+        function setQuality(levelIndex) {
+            if (Hls.isSupported() && hls) {
+                hls.currentLevel = levelIndex;
+                currentQualityLevel = levelIndex;
+                updateQualityButtonStyle(levelIndex);
+                qualityPopup.classList.add('hidden');
+                const qualityText = levelIndex === -1 ? 'Auto' : `${hls.levels[levelIndex].height}p`;
+                showMessage(`क्वालिटी सेट की गई: ${qualityText}.`); 
+            }
+        }
+
+        /** Updates the style of the selected quality button */
+        function updateQualityButtonStyle(selectedLevel) {
+            const buttons = qualityOptions.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.classList.remove('bg-gray-500', 'font-bold', 'text-green-400', 'bg-gray-600');
+                button.classList.add('bg-gray-700', 'text-gray-200', 'hover:bg-gray-600');
+            });
+
+            // Find and style the selected button (Auto or specific resolution)
+            if (selectedLevel === -1 && buttons[0]) {
+                buttons[0].classList.add('bg-gray-500', 'font-bold', 'text-green-400');
+                buttons[0].classList.remove('bg-gray-700', 'text-gray-200');
+            } else if (selectedLevel !== -1) {
+                 const selectedButton = Array.from(buttons).find(btn => btn.textContent.includes(hls.levels[selectedLevel]?.height + 'p'));
+                if (selectedButton) {
+                    selectedButton.classList.add('bg-gray-500', 'font-bold', 'text-green-400');
+                    selectedButton.classList.remove('bg-gray-700', 'text-gray-200');
+                }
+            }
+        }
+
+        /** Loads a new HLS stream, re-initializes HLS, and attaches listeners */
+        function loadHlsStream(hlsUrl) {
+            // Destroy existing HLS instance to clean up listeners and state
+            if (hls instanceof Hls) {
+                hls.destroy();
+            }
+            hls = new Hls(); // Recreate a fresh HLS instance
+
+            if (Hls.isSupported()) {
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(video);
+                
+                // Clear quality options until the new manifest is parsed
+                qualityOptions.innerHTML = '';
+                currentQualityLevel = -1;
+
+                // 1. Re-attach MANIFEST_PARSED listener (Crucial for quality options)
+                hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                    const levels = hls.levels;
+                    
+                    qualityOptions.innerHTML = ''; 
+
+                    // a. Add Auto option
+                    const autoButton = document.createElement('button');
+                    // Start with active style
+                    autoButton.className = 'w-full text-left px-2 py-1 rounded-md text-green-400 bg-gray-500 font-bold transition-colors'; 
+                    autoButton.textContent = 'Auto';
+                    autoButton.onclick = () => setQuality(-1);
+                    qualityOptions.appendChild(autoButton);
+
+                    // b. Add specific resolution options (highest first)
+                    const sortedLevels = [...levels].sort((a, b) => b.height - a.height);
+                    
+                    sortedLevels.forEach((level) => { 
+                        const levelIndex = levels.findIndex(l => l.height === level.height && l.bitrate === level.bitrate);
+                        
+                        const button = document.createElement('button');
+                        // Start with inactive style
+                        button.className = 'w-full text-left px-2 py-1 rounded-md text-gray-200 bg-gray-700 hover:bg-gray-600 transition-colors'; 
+                        button.textContent = `${level.height}p`;
+                        button.onclick = () => setQuality(levelIndex);
+                        qualityOptions.appendChild(button);
+                    });
+                    
+                    // Set Auto as default selected style
+                    updateQualityButtonStyle(-1);
+                });
+
+                // 2. Re-attach ERROR listener (Crucial for error recovery)
+                hls.on(Hls.Events.ERROR, function (event, data) {
+                    if (data.fatal) {
+                        console.error(`HLS Fatal Error: ${data.details}.`, data);
+                        showMessage(`HLS में गंभीर त्रुटि (Fatal Error): ${data.details}. पुनर्प्राप्त करने का प्रयास...`, 6000); 
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                hls.destroy();
+                                break;
+                        }
+                    }
+                });
+
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native HLS Support
+                video.src = hlsUrl;
+                video.play();
+            } else {
+                showMessage("आपका ब्राउज़र HLS स्ट्रीमिंग का समर्थन नहीं करता है।");
+            }
+        }
+        
+        /** Called when a match thumbnail is clicked - loads the ad-free stream */
+        function loadStream(url, title) {
+            if (url) {
+                showMessage(`स्ट्रीम लोड हो रही है: ${title} (Ad-free)`);
+                loadHlsStream(url);
+            } else {
+                showMessage("इस इवेंट के लिए कोई स्ट्रीमिंग URL उपलब्ध नहीं है।");
+            }
+        }
+
+
+        // --- News Ticker Implementation ---
+
+        /** Fetches news data from updates.json or falls back to simulation */
+        async function fetchUpdates() {
+            try {
+                // Fetch the actual updates.json file from the relative path
+                const response = await fetch('./updates.json');
+                
+                // Check if the request was successful
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data;
+
+            } catch (error) {
+                console.error("Error fetching updates.json. Falling back to simulated data:", error);
+                
+                // --- Fallback to Simulated Data if fetch fails ---
+                return {
+                    "last_updated": "October 17, 2025 (Simulated)",
+                    "headlines": [
+                        { "news": "सेंसेक्स ने 83,000 का ऐतिहासिक आंकड़ा पार किया, निवेशकों में जबरदस्त उत्साह।" },
+                        { "news": "दिल्ली-एनसीआर में अचानक मौसम ने करवट ली, कई इलाकों में बारिश का अलर्ट जारी।" },
+                        { "news": "महिला क्रिकेटर स्मृति मंधाना ने वनडे में सबसे तेज 5000 रन पूरे कर नया विश्व रिकॉर्ड बनाया।" },
+                        { "news": "आज रात 8 बजे से लाइव: भारत बनाम ऑस्ट्रेलिया टी20 सीरीज का निर्णायक मुकाबला।" },
+                        { "news": "सरकारी कर्मचारियों के लिए महंगाई भत्ता (DA) 4% बढ़ाया गया, अक्टूबर से लागू।" }
+                    ]
+                };
+            }
+        }
+
+        /** Initializes and starts the News Ticker */
+        async function startTicker() {
+            try {
+                const updatesData = await fetchUpdates();
+
+                if (updatesData.headlines.length === 0) {
+                    tickerContent.textContent = "No recent updates available.";
+                    return;
+                }
+
+                // Create a sequence of headlines for the continuous marquee
+                const fullTickerText = updatesData.headlines.map(item => `★ ${item.news}`).join(' \u2022 ');
+                
+                // Repeat the text to ensure a seamless loop
+                tickerContent.textContent = `${fullTickerText} \u2022 ${fullTickerText}`;
+
+                // Add the custom animation class to start the continuous scroll
+                tickerContent.classList.add('ticker-item');
+
+            } catch (error) {
+                console.error("Error loading updates for ticker:", error);
+                tickerContent.textContent = "Error loading updates.";
+            }
+        }
+        
+        // --- Live Events Tabs Implementation (New) ---
+
+        /** Initializes the tab buttons in the header */
+        function initializeTabs() {
+            const tabsHeader = document.getElementById('tabs-header');
+            tabsHeader.innerHTML = ''; 
+
+            for (const key in TAB_CONFIG) {
+                const config = TAB_CONFIG[key];
+                const button = document.createElement('button');
+                button.id = `tab-${key}`;
+                button.textContent = config.name;
+                button.className = 'py-3 px-3 sm:px-4 text-base font-bold transition-colors duration-200 focus:outline-none relative';
+
+                button.onclick = () => switchTab(key);
+                tabsHeader.appendChild(button);
+            }
+            // Load content for the default tab (fancode)
+            switchTab(currentActiveTab);
+        }
+
+        /** Switches the active tab and loads its content */
+        async function switchTab(tabKey) {
+            const oldTabKey = currentActiveTab;
+            if (tabKey === oldTabKey) {
+                // Apply active styles on initial load
+                document.getElementById(`tab-${tabKey}`).classList.add('text-white', 'border-b-2', 'border-blue-400');
+                document.getElementById(`tab-${tabKey}`).classList.remove('text-gray-400', 'hover:text-white', 'hover:border-b-2', 'hover:border-gray-500');
+                // Ensure content is visible and trigger fetch on first run
+                document.getElementById(TAB_CONFIG[tabKey].elementId).classList.remove('hidden');
+            } else {
+                 // 1. Update UI for old tab
+                document.getElementById(`tab-${oldTabKey}`).classList.remove('text-white', 'border-b-2', 'border-blue-400');
+                document.getElementById(`tab-${oldTabKey}`).classList.add('text-gray-400', 'hover:text-white', 'hover:border-b-2', 'hover:border-gray-500');
+                document.getElementById(TAB_CONFIG[oldTabKey].elementId).classList.add('hidden');
+                
+                // 2. Update active state and UI for new tab
+                currentActiveTab = tabKey;
+                document.getElementById(`tab-${tabKey}`).classList.add('text-white', 'border-b-2', 'border-blue-400');
+                document.getElementById(`tab-${tabKey}`).classList.remove('text-gray-400', 'hover:text-white', 'hover:border-b-2', 'hover:border-gray-500');
+                document.getElementById(TAB_CONFIG[tabKey].elementId).classList.remove('hidden');
+
+                // 3. Fetch and render new content
+                await fetchAndRenderMatches(tabKey);
+            }
+        }
+
+        /** Fetches data from the specified tab's URL and calls its renderer */
+        async function fetchAndRenderMatches(tabKey) {
+            const config = TAB_CONFIG[tabKey];
+            const contentElement = document.getElementById(config.elementId);
+
+            // Show loading message
+            contentElement.innerHTML = `<p id="${tabKey}-loading" class="col-span-full text-center text-gray-400 py-8">Loading ${config.name} matches...</p>`;
+
+            try {
+                const response = await fetch(config.url);
+                if (!response.ok) throw new Error(`Status: ${response.status}`);
+                
+                const data = await response.json();
+                
+                // Clear loading message
+                contentElement.innerHTML = '';
+                
+                // Call the specific renderer function
+                config.renderer(data.matches || [], contentElement);
+
+            } catch (error) {
+                console.error(`Error loading matches for ${config.name}:`, error);
+                contentElement.innerHTML = `<p class="col-span-full text-center text-red-400 py-8">Failed to load ${config.name} matches. (Network or Data Error)</p>`;
+            }
+        }
+
+        /** Renderer function for Fancode matches */
+        function renderFancodeMatches(matches, containerElement) {
+            if (matches.length === 0) {
+                containerElement.innerHTML = '<p class="col-span-full text-center text-gray-400 py-8">No live or upcoming Fancode matches available.</p>';
+                return;
+            }
+
+            matches.forEach(match => {
+                const card = document.createElement('div');
+                card.className = 'relative rounded-lg overflow-hidden bg-gray-800 shadow-lg hover:shadow-xl hover:ring-2 hover:ring-blue-500 transition-all duration-300 group cursor-pointer';
+                
+                // CRITICAL: Load non-ads URL on click
+                card.onclick = () => loadStream(match.adfree_url, match.title);
+
+                const isLive = match.status === 'LIVE';
+                const statusClass = isLive ? 'bg-red-600' : 'bg-yellow-600';
+                const statusText = isLive ? 'LIVE' : (match.status === 'UPCOMING' ? 'UPCOMING' : 'COMPLETED'); // Added logic for completed/upcoming
+                const displayStatusText = isLive ? 'LIVE' : 'UPCOMING';
+                
+                const fallbackImage = 'https://placehold.co/400x225/1f2937/ffffff?text=Fancode+Event';
+
+                card.innerHTML = `
+                    <!-- Thumbnail & Status Badge -->
+                    <div class="relative w-full aspect-video">
+                        <img src="${match.src || fallbackImage}" 
+                             alt="${match.title}" 
+                             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.05] transform"
+                             onerror="this.onerror=null; this.src='${fallbackImage}';"
+                        >
+                        <!-- Status badge on top right -->
+                        <span class="absolute top-2 right-2 ${statusClass} text-white text-xs font-bold px-2 py-1 rounded-full shadow-md uppercase">
+                            ${displayStatusText}
+                        </span>
+                    </div>
+                    
+                    <!-- Title Below Thumbnail -->
+                    <div class="p-3">
+                        <!-- Match name/title below thumbnail -->
+                        <p class="text-sm font-semibold text-white mb-1 truncate" title="${match.title}">
+                            ${match.title}
+                        </p>
+                        <!-- Event detail -->
+                        <p class="text-xs text-gray-400">
+                            <i class="fas fa-calendar-alt mr-1"></i> 
+                            ${match.startTime ? new Date(match.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'समय निर्धारित नहीं'}
+                        </p>
+                    </div>
+                `;
+                containerElement.appendChild(card);
+            });
+        }
+        
+        // --- Main App Initialization ---
+
+        function initializeApp() {
+            // 1. Start News Ticker (fetch from updates.json)
+            startTicker();
+
+            // 2. Initialize Tabs (Fancode matches)
+            initializeTabs();
+
+            // 3. Load HLS Player (from URL parameter if available)
+            const hlsUrl = getQueryParam('url');
+            if (hlsUrl) {
+                loadHlsStream(hlsUrl);
+            } else {
+                showMessage("⚠️ कोई URL प्रदान नहीं किया गया है। कृपया URL में '?url=your_hls_link.m3u8' जोड़ें।", 10000);
+            }
+        }
+        
+        // Hide popups when clicking outside
+        document.addEventListener('click', (e) => {
+            // Check Info Popup
+            const infoContainer = document.getElementById('info-icon-container');
+            if (infoContainer && !infoContainer.contains(e.target) && !infoPopup.classList.contains('hidden')) {
+                toggleInfoPopup();
+            }
+            // Check Quality Popup
+            const qualityContainer = document.querySelector('.relative.flex-shrink-0');
+            if (qualityContainer && !qualityContainer.contains(e.target) && !qualityPopup.classList.contains('hidden')) {
+                toggleQualityPopup();
+            }
+        });
+
+    </script>
+
+</body>
+</html>
