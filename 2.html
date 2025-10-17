@@ -209,10 +209,13 @@
         const tickerContent = document.getElementById('ticker-content');
         
         // --- Tab Configuration (New) ---
+        const FANCODE_URL = 'https://raw.githubusercontent.com/Odfinity/live-events/refs/heads/main/fancode/data.json';
+        
         const TAB_CONFIG = {
             'fancode': {
                 name: 'Fancode',
-                url: 'https://raw.githubusercontent.com/Odfinity/live-events/refs/heads/main/fancode/data.json',
+                // FIX: CORS Proxy removed as per user request. Using direct GitHub Raw URL.
+                url: FANCODE_URL,
                 renderer: renderFancodeMatches, // Function to render the data
                 elementId: 'fancode-content' // The ID of the HTML container for this tab's content
             }
@@ -492,13 +495,9 @@
         /** Switches the active tab and loads its content */
         async function switchTab(tabKey) {
             const oldTabKey = currentActiveTab;
-            if (tabKey === oldTabKey) {
-                // Apply active styles on initial load
-                document.getElementById(`tab-${tabKey}`).classList.add('text-white', 'border-b-2', 'border-blue-400');
-                document.getElementById(`tab-${tabKey}`).classList.remove('text-gray-400', 'hover:text-white', 'hover:border-b-2', 'hover:border-gray-500');
-                // Ensure content is visible and trigger fetch on first run
-                document.getElementById(TAB_CONFIG[tabKey].elementId).classList.remove('hidden');
-            } else {
+            // The initial call handles the active state correctly for the first tab.
+            // Subsequent calls handle switching.
+            if (tabKey !== oldTabKey) {
                  // 1. Update UI for old tab
                 document.getElementById(`tab-${oldTabKey}`).classList.remove('text-white', 'border-b-2', 'border-blue-400');
                 document.getElementById(`tab-${oldTabKey}`).classList.add('text-gray-400', 'hover:text-white', 'hover:border-b-2', 'hover:border-gray-500');
@@ -506,11 +505,18 @@
                 
                 // 2. Update active state and UI for new tab
                 currentActiveTab = tabKey;
-                document.getElementById(`tab-${tabKey}`).classList.add('text-white', 'border-b-2', 'border-blue-400');
-                document.getElementById(`tab-${tabKey}`).classList.remove('text-gray-400', 'hover:text-white', 'hover:border-b-2', 'hover:border-gray-500');
-                document.getElementById(TAB_CONFIG[tabKey].elementId).classList.remove('hidden');
-
+                
                 // 3. Fetch and render new content
+                await fetchAndRenderMatches(tabKey);
+            }
+            
+            // Apply active styles to the current tab (either on initial load or after switch)
+            document.getElementById(`tab-${tabKey}`).classList.add('text-white', 'border-b-2', 'border-blue-400');
+            document.getElementById(`tab-${tabKey}`).classList.remove('text-gray-400', 'hover:text-white', 'hover:border-b-2', 'hover:border-gray-500');
+            document.getElementById(TAB_CONFIG[tabKey].elementId).classList.remove('hidden');
+
+            // Force fetch on initial load and subsequent switches
+            if (tabKey === oldTabKey) {
                 await fetchAndRenderMatches(tabKey);
             }
         }
@@ -524,20 +530,43 @@
             contentElement.innerHTML = `<p id="${tabKey}-loading" class="col-span-full text-center text-gray-400 py-8">Loading ${config.name} matches...</p>`;
 
             try {
+                // Fetch using the direct URL (without proxy)
                 const response = await fetch(config.url);
-                if (!response.ok) throw new Error(`Status: ${response.status}`);
                 
-                const data = await response.json();
+                if (!response.ok) {
+                    console.error(`Fetch failed with status: ${response.status}`);
+                    throw new Error(`Status: ${response.status}`);
+                }
+                
+                // Check for empty response body before trying to parse JSON
+                const text = await response.text();
+                if (!text) {
+                    console.warn(`Empty response for ${config.name}`);
+                    throw new Error("Empty response body.");
+                }
+                
+                // Parse the JSON data
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    console.error("JSON Parse Error:", e);
+                    throw new Error("JSON data could not be parsed.");
+                }
                 
                 // Clear loading message
                 contentElement.innerHTML = '';
                 
                 // Call the specific renderer function
+                // The structure is expected to be { ..., "matches": [...] }
                 config.renderer(data.matches || [], contentElement);
 
             } catch (error) {
                 console.error(`Error loading matches for ${config.name}:`, error);
-                contentElement.innerHTML = `<p class="col-span-full text-center text-red-400 py-8">Failed to load ${config.name} matches. (Network or Data Error)</p>`;
+                contentElement.innerHTML = `<p class="col-span-full text-center text-red-400 py-8">
+                    Failed to load ${config.name} matches. (Data/Network Error).
+                    <br>कृपया पुष्टि करें कि GitHub Raw URL तक सीधी पहुँच काम करती है।
+                </p>`;
             }
         }
 
@@ -555,12 +584,30 @@
                 // CRITICAL: Load non-ads URL on click
                 card.onclick = () => loadStream(match.adfree_url, match.title);
 
-                const isLive = match.status === 'LIVE';
-                const statusClass = isLive ? 'bg-red-600' : 'bg-yellow-600';
-                const statusText = isLive ? 'LIVE' : (match.status === 'UPCOMING' ? 'UPCOMING' : 'COMPLETED'); // Added logic for completed/upcoming
-                const displayStatusText = isLive ? 'LIVE' : 'UPCOMING';
+                const isLive = match.status.toUpperCase() === 'LIVE'; // Status comparison made case-insensitive
+                const statusClass = isLive ? 'bg-red-600 animate-pulse' : 'bg-yellow-600'; // Added pulse to LIVE
+                // Check for 'UPCOMING' explicitly, otherwise default to 'COMPLETED'
+                const displayStatusText = isLive ? 'LIVE' : (match.status.toUpperCase() === 'UPCOMING' ? 'UPCOMING' : 'COMPLETED');
                 
                 const fallbackImage = 'https://placehold.co/400x225/1f2937/ffffff?text=Fancode+Event';
+
+                // Attempt to parse the start time to check if it's a valid date
+                let timeDisplay = 'समय निर्धारित नहीं';
+                try {
+                    // Assuming startTime is a string like "03:30:00 AM 17-10-2025" or similar format
+                    const dateString = match.startTime;
+                    // Note: Date parsing for custom formats can be tricky in different browsers. 
+                    // We'll rely on the default parser but display only time.
+                    const date = new Date(dateString); 
+                    
+                    // Check if date is valid and format it
+                    if (!isNaN(date.getTime())) { // Check for valid timestamp
+                        timeDisplay = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    }
+                } catch (e) {
+                    console.warn("Invalid startTime format:", match.startTime);
+                }
+
 
                 card.innerHTML = `
                     <!-- Thumbnail & Status Badge -->
@@ -584,8 +631,8 @@
                         </p>
                         <!-- Event detail -->
                         <p class="text-xs text-gray-400">
-                            <i class="fas fa-calendar-alt mr-1"></i> 
-                            ${match.startTime ? new Date(match.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'समय निर्धारित नहीं'}
+                            <i class="fas fa-clock mr-1"></i> 
+                            ${timeDisplay}
                         </p>
                     </div>
                 `;
