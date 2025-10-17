@@ -305,7 +305,7 @@
             return urlParams.get(param);
         }
         
-        // --- HLS.js Implementation (Now includes xhrSetup) ---
+        // --- HLS.js Implementation (Explicit xhrSetup config) ---
 
         /** Sets the HLS quality level and updates the button styles */
         function setQuality(levelIndex) {
@@ -354,15 +354,13 @@
             }
 
             if (Hls.isSupported()) {
-                // Re-added xhrSetup configuration as requested by the user.
-                // This is the correct way to configure headers in hls.js.
+                // यह वह कॉन्फ़िगरेशन तरीका है जो हेडर सेट करता है, जैसा आपने अनुरोध किया है।
                 hls = new Hls({
+                    // FanCode/JioTV के लिए आवश्यक हेडर सेट करने के लिए xhrSetup का उपयोग करें
                     xhrSetup: function (xhr, url) {
-                        for (const header in REQUIRED_HLS_HEADERS) {
-                            if (REQUIRED_HLS_HEADERS.hasOwnProperty(header)) {
-                                xhr.setRequestHeader(header, REQUIRED_HLS_HEADERS[header]);
-                            }
-                        }
+                        xhr.setRequestHeader('Referer', REQUIRED_HLS_HEADERS['Referer']);
+                        xhr.setRequestHeader('User-Agent', REQUIRED_HLS_HEADERS['User-Agent']);
+                        // Note: Browsers will still show a "Refused to set unsafe header" warning for security reasons.
                     }
                 }); 
                 
