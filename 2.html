@@ -195,11 +195,15 @@
         let currentQualityLevel = -1; // -1 for auto
 
         // --- HLS Spoofing Headers (FanCode के लिए ज़रूरी) ---
-        // NOTE: The REQUIRED_HLS_HEADERS constant and xhrSetup have been removed because 
-        // the browser security policy forbids setting "Referer" and "User-Agent" headers from client-side JS.
-        // This is a browser limitation, and the server (FanCode) will likely still return 403 for protected streams.
-        // For these streams, a server-side proxy is mandatory.
-
+        // These headers are REQUIRED by the FanCode/JioTV server for stream access.
+        const REQUIRED_HLS_HEADERS = {
+            'Referer': 'https://www.jiotv.com/',
+            'User-Agent': 'plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6'
+        };
+        
+        // WARNING: Setting these headers directly in client-side JS is blocked by browsers 
+        // and will cause the "Refused to set unsafe header" error in the console.
+        
         const video = document.getElementById('videoPlayer');
         const mainContent = document.getElementById('main-content');
         const initialPopup = document.getElementById('initial-popup');
@@ -301,7 +305,7 @@
             return urlParams.get(param);
         }
         
-        // --- HLS.js Implementation (Cleaned) ---
+        // --- HLS.js Implementation (Now includes xhrSetup) ---
 
         /** Sets the HLS quality level and updates the button styles */
         function setQuality(levelIndex) {
@@ -350,8 +354,17 @@
             }
 
             if (Hls.isSupported()) {
-                // Removed xhrSetup to fix the "Refused to set unsafe header" error.
-                hls = new Hls(); 
+                // Re-added xhrSetup configuration as requested by the user.
+                // This is the correct way to configure headers in hls.js.
+                hls = new Hls({
+                    xhrSetup: function (xhr, url) {
+                        for (const header in REQUIRED_HLS_HEADERS) {
+                            if (REQUIRED_HLS_HEADERS.hasOwnProperty(header)) {
+                                xhr.setRequestHeader(header, REQUIRED_HLS_HEADERS[header]);
+                            }
+                        }
+                    }
+                }); 
                 
                 hls.loadSource(hlsUrl);
                 hls.attachMedia(video);
@@ -407,6 +420,11 @@
                             case Hls.ErrorTypes.MEDIA_ERROR:
                                 errorMessage = "स्ट्रीम मीडिया त्रुटि। रिकवरी का प्रयास किया जा रहा है...";
                                 hls.recoverMediaError();
+                                break;
+                            case Hls.ErrorTypes.MANIFEST_LOAD_ERROR:
+                                errorMessage = "मेनिफेस्ट लोड नहीं हो सका। यह 403 Forbidden एरर हो सकती है क्योंकि ब्राउज़र हेडर सेट नहीं कर पाया।";
+                                // Destroy HLS instance for this type of error to prevent continuous retries
+                                hls.destroy();
                                 break;
                             default:
                                 // For other fatal errors, destroy the instance
