@@ -71,10 +71,10 @@
 </head>
 <body class="min-h-screen">
 
-    <!-- Temporary Message Box for HLS errors/alerts (Fixed and Centered below shorter header) -->
-    <div id="message-box" class="fixed top-16 left-1/2 transform -translate-x-1/2 max-w-sm w-full p-3 bg-red-600/90 backdrop-blur-sm text-white font-semibold rounded-lg shadow-2xl hidden z-50 flex items-center justify-between">
+    <!-- Temporary Message Box for HLS errors/alerts (Used ONLY for success/info now) -->
+    <div id="message-box" class="fixed top-16 left-1/2 transform -translate-x-1/2 max-w-sm w-full p-3 bg-blue-600/90 backdrop-blur-sm text-white font-semibold rounded-lg shadow-2xl hidden z-50 flex items-center justify-between">
         <span id="message-text" class="flex-grow text-center"></span>
-        <button onclick="document.getElementById('message-box').classList.add('hidden')" class="ml-4 text-white hover:text-gray-200 focus:outline-none p-1 -my-1 rounded-full hover:bg-red-700 transition">
+        <button onclick="document.getElementById('message-box').classList.add('hidden')" class="ml-4 text-white hover:text-gray-200 focus:outline-none p-1 -my-1 rounded-full hover:bg-blue-700 transition">
             <!-- Close Icon (X) -->
             <i class="fas fa-xmark text-lg"></i>
         </button>
@@ -226,8 +226,12 @@
 
         // --- Utility Functions ---
 
-        /** Shows a custom message box instead of alert() */
+        /** Shows a custom message box instead of alert() - Now used only for success/info, NOT errors */
         function showMessage(msg, duration = 4000) {
+            // Error messages are now suppressed as requested. This is for success/info only.
+            messageBox.classList.remove('bg-red-600/90', 'hover:bg-red-700');
+            messageBox.classList.add('bg-blue-600/90', 'hover:bg-blue-700');
+
             messageText.textContent = msg; 
             messageBox.classList.remove('hidden');
             setTimeout(() => {
@@ -301,7 +305,7 @@
                 updateQualityButtonStyle(levelIndex);
                 qualityPopup.classList.add('hidden');
                 const qualityText = levelIndex === -1 ? 'Auto' : `${hls.levels[levelIndex].height}p`;
-                showMessage(`क्वालिटी सेट की गई: ${qualityText}.`); 
+                showMessage(`क्वालिटी सेट की गई: ${qualityText}.`, 2000); // Shorter duration for success
             }
         }
 
@@ -377,14 +381,10 @@
                 // 2. Re-attach ERROR listener (Crucial for error recovery)
                 hls.on(Hls.Events.ERROR, function (event, data) {
                     if (data.fatal) {
-                        console.error(`HLS Fatal Error: ${data.details}.`, data);
-                        showMessage(`HLS में गंभीर त्रुटि (Fatal Error): ${data.details}. पुनर्प्राप्त करने का प्रयास...`, 6000); 
+                        // CORE CHANGE 2: Suppress all on-screen error popups, log to console only
+                        console.error(`HLS Fatal Error (On-screen message suppressed as requested): ${data.details}.`, data);
                         
-                        // Check for 403 Forbidden specifically
-                        if (data.details === "manifestLoadError" && data.response && data.response.code === 403) {
-                             showMessage("⛔ 403 Forbidden एरर: CDN ने इस डोमेन से एक्सेस ब्लॉक कर दिया है। प्रॉक्सी के बिना स्ट्रीम लोड नहीं हो सकती।", 10000);
-                        }
-
+                        // Error recovery logic remains
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
                                 hls.startLoad();
@@ -404,42 +404,40 @@
                 video.src = hlsUrl;
                 video.play();
             } else {
-                showMessage("आपका ब्राउज़र HLS स्ट्रीमिंग का समर्थन नहीं करता है।");
+                // Suppress this generic error popup too.
+                console.error("Browser does not support HLS streaming.");
             }
         }
         
         /** Called when a match thumbnail is clicked - loads the ad-free stream */
         function loadStream(url, title) {
             if (url) {
-                // IMPORTANT: NO proxy is used here. This is a direct load.
-                showMessage(`स्ट्रीम लोड हो रही है: ${title} (Ad-free). यह सीधा URL लोड है।`);
-                loadHlsStream(url); // Direct URL used
+                // Display success message briefly
+                showMessage(`स्ट्रीम लोड हो रही है: ${title}.`, 2000); 
+                
+                // CORE CHANGE 1: Update the URL in the browser history for sharing/refreshing
+                window.history.replaceState(null, '', `?url=${encodeURIComponent(url)}`);
+                
+                loadHlsStream(url); 
             } else {
-                showMessage("इस इवेंट के लिए कोई स्ट्रीमिंग URL उपलब्ध नहीं है।");
+                // Suppress this warning popup as well, log only
+                console.warn("Stream URL not available for this event.");
             }
         }
 
 
         // --- News Ticker Implementation ---
-
-        /** Fetches news data from updates.json or falls back to simulation */
+        // ... (Same logic as before) ...
         async function fetchUpdates() {
             try {
-                // Fetch the actual updates.json file from the relative path
                 const response = await fetch('./updates.json');
-                
-                // Check if the request was successful
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
                 const data = await response.json();
                 return data;
-
             } catch (error) {
                 console.error("Error fetching updates.json. Falling back to simulated data:", error);
-                
-                // --- Fallback to Simulated Data if fetch fails ---
                 return {
                     "last_updated": "October 17, 2025 (Simulated)",
                     "headlines": [
@@ -457,21 +455,13 @@
         async function startTicker() {
             try {
                 const updatesData = await fetchUpdates();
-
                 if (updatesData.headlines.length === 0) {
                     tickerContent.textContent = "No recent updates available.";
                     return;
                 }
-
-                // Create a sequence of headlines for the continuous marquee
                 const fullTickerText = updatesData.headlines.map(item => `★ ${item.news}`).join(' \u2022 ');
-                
-                // Repeat the text to ensure a seamless loop
                 tickerContent.textContent = `${fullTickerText} \u2022 ${fullTickerText}`;
-
-                // Add the custom animation class to start the continuous scroll
                 tickerContent.classList.add('ticker-item');
-
             } catch (error) {
                 console.error("Error loading updates for ticker:", error);
                 tickerContent.textContent = "Error loading updates.";
@@ -479,8 +469,7 @@
         }
         
         // --- Live Events Tabs Implementation (New) ---
-
-        /** Initializes the tab buttons in the header */
+        // ... (Same logic as before) ...
         function initializeTabs() {
             const tabsHeader = document.getElementById('tabs-header');
             tabsHeader.innerHTML = ''; 
@@ -495,15 +484,11 @@
                 button.onclick = () => switchTab(key);
                 tabsHeader.appendChild(button);
             }
-            // Load content for the default tab (fancode)
             switchTab(currentActiveTab);
         }
 
-        /** Switches the active tab and loads its content */
         async function switchTab(tabKey) {
             const oldTabKey = currentActiveTab;
-            // The initial call handles the active state correctly for the first tab.
-            // Subsequent calls handle switching.
             if (tabKey !== oldTabKey) {
                  // 1. Update UI for old tab
                 document.getElementById(`tab-${oldTabKey}`).classList.remove('text-white', 'border-b-2', 'border-blue-400');
@@ -517,27 +502,22 @@
                 await fetchAndRenderMatches(tabKey);
             }
             
-            // Apply active styles to the current tab (either on initial load or after switch)
             document.getElementById(`tab-${tabKey}`).classList.add('text-white', 'border-b-2', 'border-blue-400');
             document.getElementById(`tab-${tabKey}`).classList.remove('text-gray-400', 'hover:text-white', 'hover:border-b-2', 'hover:border-gray-500');
             document.getElementById(TAB_CONFIG[tabKey].elementId).classList.remove('hidden');
 
-            // Force fetch on initial load and subsequent switches
             if (tabKey === oldTabKey) {
                 await fetchAndRenderMatches(tabKey);
             }
         }
 
-        /** Fetches data from the specified tab's URL and calls its renderer */
         async function fetchAndRenderMatches(tabKey) {
             const config = TAB_CONFIG[tabKey];
             const contentElement = document.getElementById(config.elementId);
 
-            // Show loading message
             contentElement.innerHTML = `<p id="${tabKey}-loading" class="col-span-full text-center text-gray-400 py-8">Loading ${config.name} matches...</p>`;
 
             try {
-                // Fetch using the direct URL (without proxy for the JSON data)
                 const response = await fetch(config.url);
                 
                 if (!response.ok) {
@@ -545,14 +525,12 @@
                     throw new Error(`Status: ${response.status}`);
                 }
                 
-                // Check for empty response body before trying to parse JSON
                 const text = await response.text();
                 if (!text) {
                     console.warn(`Empty response for ${config.name}`);
                     throw new Error("Empty response body.");
                 }
                 
-                // Parse the JSON data
                 let data;
                 try {
                     data = JSON.parse(text);
@@ -561,10 +539,7 @@
                     throw new Error("JSON data could not be parsed.");
                 }
                 
-                // Clear loading message
                 contentElement.innerHTML = '';
-                
-                // Call the specific renderer function
                 config.renderer(data.matches || [], contentElement);
 
             } catch (error) {
@@ -576,7 +551,6 @@
             }
         }
 
-        /** Renderer function for Fancode matches */
         function renderFancodeMatches(matches, containerElement) {
             if (matches.length === 0) {
                 containerElement.innerHTML = '<p class="col-span-full text-center text-gray-400 py-8">No live or upcoming Fancode matches available.</p>';
@@ -587,27 +561,20 @@
                 const card = document.createElement('div');
                 card.className = 'relative rounded-lg overflow-hidden bg-gray-800 shadow-lg hover:shadow-xl hover:ring-2 hover:ring-blue-500 transition-all duration-300 group cursor-pointer';
                 
-                // CRITICAL: Load ad-free URL on click
                 card.onclick = () => loadStream(match.adfree_url, match.title);
 
-                const isLive = match.status.toUpperCase() === 'LIVE'; // Status comparison made case-insensitive
-                const statusClass = isLive ? 'bg-red-600 animate-pulse' : 'bg-yellow-600'; // Added pulse to LIVE
-                // Check for 'UPCOMING' explicitly, otherwise default to 'COMPLETED'
+                const isLive = match.status.toUpperCase() === 'LIVE'; 
+                const statusClass = isLive ? 'bg-red-600 animate-pulse' : 'bg-yellow-600'; 
                 const displayStatusText = isLive ? 'LIVE' : (match.status.toUpperCase() === 'UPCOMING' ? 'UPCOMING' : 'COMPLETED');
                 
                 const fallbackImage = 'https://placehold.co/400x225/1f2937/ffffff?text=Fancode+Event';
 
-                // Attempt to parse the start time to check if it's a valid date
                 let timeDisplay = 'समय निर्धारित नहीं';
                 try {
-                    // Assuming startTime is a string like "03:30:00 AM 17-10-2025" or similar format
                     const dateString = match.startTime;
-                    // Note: Date parsing for custom formats can be tricky in different browsers. 
-                    // We'll rely on the default parser but display only time.
                     const date = new Date(dateString); 
                     
-                    // Check if date is valid and format it
-                    if (!isNaN(date.getTime())) { // Check for valid timestamp
+                    if (!isNaN(date.getTime())) { 
                         timeDisplay = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
                     }
                 } catch (e) {
@@ -658,12 +625,10 @@
             // 3. Load HLS Player (from URL parameter if available, as requested)
             const hlsUrl = getQueryParam('url');
             if (hlsUrl) {
-                // Since user requested no proxy, use the direct URL from the query parameter
+                // If a URL is in the query, load it silently (no success message on refresh)
                 loadHlsStream(hlsUrl);
-                showMessage("स्ट्रीम URL क्वेरी पैरामीटर से लोड हो रही है। (?url=)");
-            } else {
-                showMessage("⚠️ कोई URL प्रदान नहीं किया गया है। कृपया URL में '?url=your_hls_link.m3u8' जोड़ें या नीचे दिए गए मैचों पर क्लिक करें।", 10000);
             }
+            // CORE CHANGE: Removed the warning/message if no URL is found, keeping it silent.
         }
         
         // Hide popups when clicking outside
