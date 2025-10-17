@@ -209,12 +209,12 @@
         const tickerContent = document.getElementById('ticker-content');
         
         // --- Tab Configuration (New) ---
+        // JSON Data URL - Direct fetch is okay for this, as requested.
         const FANCODE_URL = 'https://raw.githubusercontent.com/Odfinity/live-events/refs/heads/main/fancode/data.json';
         
         const TAB_CONFIG = {
             'fancode': {
                 name: 'Fancode',
-                // FIX: CORS Proxy removed as per user request. Using direct GitHub Raw URL.
                 url: FANCODE_URL,
                 renderer: renderFancodeMatches, // Function to render the data
                 elementId: 'fancode-content' // The ID of the HTML container for this tab's content
@@ -405,8 +405,10 @@
         /** Called when a match thumbnail is clicked - loads the ad-free stream */
         function loadStream(url, title) {
             if (url) {
-                showMessage(`स्ट्रीम लोड हो रही है: ${title} (Ad-free)`);
-                loadHlsStream(url);
+                // IMPORTANT: As per user request, NO proxy is used here. 
+                // This may result in 403 Forbidden errors due to CDN security policies.
+                showMessage(`स्ट्रीम लोड हो रही है: ${title} (Ad-free). प्रॉक्सी हटा दिया गया है।`);
+                loadHlsStream(url); // Direct URL used
             } else {
                 showMessage("इस इवेंट के लिए कोई स्ट्रीमिंग URL उपलब्ध नहीं है।");
             }
@@ -530,7 +532,7 @@
             contentElement.innerHTML = `<p id="${tabKey}-loading" class="col-span-full text-center text-gray-400 py-8">Loading ${config.name} matches...</p>`;
 
             try {
-                // Fetch using the direct URL (without proxy)
+                // Fetch using the direct URL (without proxy for the JSON data)
                 const response = await fetch(config.url);
                 
                 if (!response.ok) {
@@ -558,7 +560,6 @@
                 contentElement.innerHTML = '';
                 
                 // Call the specific renderer function
-                // The structure is expected to be { ..., "matches": [...] }
                 config.renderer(data.matches || [], contentElement);
 
             } catch (error) {
@@ -581,7 +582,7 @@
                 const card = document.createElement('div');
                 card.className = 'relative rounded-lg overflow-hidden bg-gray-800 shadow-lg hover:shadow-xl hover:ring-2 hover:ring-blue-500 transition-all duration-300 group cursor-pointer';
                 
-                // CRITICAL: Load non-ads URL on click
+                // CRITICAL: Load ad-free URL on click
                 card.onclick = () => loadStream(match.adfree_url, match.title);
 
                 const isLive = match.status.toUpperCase() === 'LIVE'; // Status comparison made case-insensitive
@@ -652,6 +653,7 @@
             // 3. Load HLS Player (from URL parameter if available)
             const hlsUrl = getQueryParam('url');
             if (hlsUrl) {
+                // Since user requested no proxy, use the direct URL from the query parameter
                 loadHlsStream(hlsUrl);
             } else {
                 showMessage("⚠️ कोई URL प्रदान नहीं किया गया है। कृपया URL में '?url=your_hls_link.m3u8' जोड़ें।", 10000);
