@@ -52,9 +52,8 @@
             border-bottom: 10px solid #2d3748; /* Arrow color matching popup background */
         }
         
-        /* UPDATED: White Directional Glow effect for the logo (coming from left like a torch) */
+        /* White Directional Glow effect for the logo */
         .logo-glow {
-            /* Simulating a bright, directional light source from the left (x-offset of 10px casts the glow to the right) */
             filter: drop-shadow(10px 0px 30px rgba(255, 255, 255, 1)) 
                     drop-shadow(0 0 5px rgba(255, 255, 255, 0.7)); 
         }
@@ -71,7 +70,7 @@
 </head>
 <body class="min-h-screen">
 
-    <!-- Temporary Message Box for HLS errors/alerts (Used ONLY for success/info now) -->
+    <!-- Temporary Message Box for success/info/error -->
     <div id="message-box" class="fixed top-16 left-1/2 transform -translate-x-1/2 max-w-sm w-full p-3 bg-blue-600/90 backdrop-blur-sm text-white font-semibold rounded-lg shadow-2xl hidden z-50 flex items-center justify-between">
         <span id="message-text" class="flex-grow text-center"></span>
         <button onclick="document.getElementById('message-box').classList.add('hidden')" class="ml-4 text-white hover:text-gray-200 focus:outline-none p-1 -my-1 rounded-full hover:bg-blue-700 transition">
@@ -82,6 +81,7 @@
 
 
     <!-- Mandatory Initial Popup (Full Screen Overlay) -->
+    <!-- Note: This will be hidden immediately by JS if a shareable URL is found -->
     <div id="initial-popup" class="fixed inset-0 flex flex-col justify-center items-center z-50 text-center p-4">
         <div class="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-sm w-full border border-yellow-500/50">
             <h2 class="text-3xl font-extrabold text-yellow-400 mb-4">Welcome to CricketSparx!</h2>
@@ -99,25 +99,23 @@
         </div>
     </div>
 
-    <!-- Header (Fixed Top - Made shorter with py-2) -->
+    <!-- Header (Fixed Top) -->
     <header class="flex justify-between items-center w-full px-4 py-2 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-20 shadow-lg">
-        <!-- Left: Logo (Increased size and directional glow) -->
+        <!-- Left: Logo -->
         <a href="/" class="flex items-center space-x-2">
-            <!-- Logo size increased: h-12 md:h-16 -->
             <img src="https://i.ibb.co/XkvSyqy7/transparent-logo-cricketsparx-rocket.png" alt="CricketSparx Logo" class="h-12 md:h-16 logo-glow">
-            <!-- Text hidden on mobile (hidden) and shown on screens bigger than small (sm:block) -->
             <span class="text-xl md:text-2xl font-bold text-white tracking-wider hidden sm:block">CricketSparx</span>
         </a>
 
         <!-- Right: Icons -->
         <div class="flex items-center space-x-4 relative">
             
-            <!-- Telegram Icon (Font Awesome) -->
+            <!-- Telegram Icon -->
             <a href="https://t.me/Cricket_Sparx" target="_blank" class="text-white hover:text-blue-400 transition duration-150 p-2 rounded-full bg-gray-800/50">
                 <i class="fab fa-telegram-plane text-2xl"></i>
             </a>
 
-            <!-- Info/Question Icon & Popup Container (Font Awesome) -->
+            <!-- Info/Question Icon & Popup Container -->
             <div id="info-icon-container" class="relative">
                 <button onclick="toggleInfoPopup()" class="text-white hover:text-yellow-400 transition duration-150 p-2 rounded-full bg-gray-800/50 focus:outline-none">
                     <i class="fas fa-circle-question text-xl"></i>
@@ -134,7 +132,7 @@
         </div>
     </header>
 
-    <!-- Main Content Area (Hidden until initial popup is dismissed) -->
+    <!-- Main Content Area (Hidden until initial popup is dismissed OR stream URL is found) -->
     <main id="main-content" class="w-full hidden">
         <!-- Video Player Section (Edge-to-Edge) -->
         <div id="streaming-container" class="w-full bg-black">
@@ -144,9 +142,8 @@
         <!-- News Ticker and Settings Section -->
         <div class="flex justify-between items-center w-full bg-gray-800 p-2 shadow-inner">
             
-            <!-- Left: Live Updates Ticker (Red dot removed) -->
+            <!-- Left: Live Updates Ticker -->
             <div id="ticker-area" class="flex items-center flex-grow overflow-hidden h-6">
-                <!-- Live Icon (fas fa-circle) removed as requested -->
                 <div id="ticker-text" class="text-sm font-medium text-gray-300 whitespace-nowrap overflow-hidden relative">
                     <!-- Content will be inserted by JS and animated -->
                     <span id="ticker-content" class="ticker-item">Loading latest updates...</span>
@@ -170,7 +167,7 @@
             </div>
         </div>
 
-        <!-- NEW: Tabs and Live Events Section (Edge-to-Edge) -->
+        <!-- Tabs and Live Events Section (Edge-to-Edge) -->
         <section class="w-full bg-gray-900/90 pt-1 pb-4">
             <!-- Tabs Header -->
             <div id="tabs-header" class="flex border-b border-gray-700/50 overflow-x-auto whitespace-nowrap px-4 sm:px-6">
@@ -180,13 +177,12 @@
             <!-- Tab Content (Matches Container) -->
             <div id="tab-content" class="p-4 sm:p-6">
                 <!-- Fancode Matches Grid -->
-                <div id="fancode-content" class="match-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <div id="fancode-content" class="match-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                     <!-- Fancode matches will be rendered here -->
                     <p id="fancode-loading" class="col-span-full text-center text-gray-400">Loading Fancode matches...</p>
                 </div>
                 
                 <!-- Other future tab contents (hidden by default) -->
-                <!-- The JS switchTab function will handle hiding/showing these -->
             </div>
         </section>
         
@@ -195,8 +191,15 @@
 
     <script>
         // Global HLS instance
-        let hls = new Hls();
+        let hls = null; 
         let currentQualityLevel = -1; // -1 for auto
+
+        // --- HLS Spoofing Headers (FanCode के लिए ज़रूरी) ---
+        const REQUIRED_HLS_HEADERS = {
+            'Referer': 'https://www.jiotv.com/',
+            'User-Agent': "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6"
+        };
+
 
         const video = document.getElementById('videoPlayer');
         const mainContent = document.getElementById('main-content');
@@ -208,8 +211,7 @@
         const messageText = document.getElementById('message-text');
         const tickerContent = document.getElementById('ticker-content');
         
-        // --- Tab Configuration (New) ---
-        // JSON Data URL - Direct fetch is okay for this, as requested.
+        // --- Tab Configuration ---
         const FANCODE_URL = 'https://raw.githubusercontent.com/Odfinity/live-events/refs/heads/main/fancode/data.json';
         
         const TAB_CONFIG = {
@@ -219,18 +221,23 @@
                 renderer: renderFancodeMatches, // Function to render the data
                 elementId: 'fancode-content' // The ID of the HTML container for this tab's content
             }
-            // Future tabs can be added here
         };
         let currentActiveTab = 'fancode';
 
 
         // --- Utility Functions ---
 
-        /** Shows a custom message box instead of alert() - Now used only for success/info, NOT errors */
-        function showMessage(msg, duration = 4000) {
-            // Error messages are now suppressed as requested. This is for success/info only.
-            messageBox.classList.remove('bg-red-600/90', 'hover:bg-red-700');
-            messageBox.classList.add('bg-blue-600/90', 'hover:bg-blue-700');
+        /** Shows a custom message box instead of alert() */
+        function showMessage(msg, isError = false, duration = 4000) {
+            // Remove all specific styles first
+            messageBox.classList.remove('bg-blue-600/90', 'bg-red-600/90', 'border', 'border-red-400');
+            
+            // Apply new styles based on error status
+            if (isError) {
+                messageBox.classList.add('bg-red-600/90', 'border', 'border-red-400');
+            } else {
+                messageBox.classList.add('bg-blue-600/90');
+            }
 
             messageText.textContent = msg; 
             messageBox.classList.remove('hidden');
@@ -284,8 +291,8 @@
                 initialPopup.classList.add('hidden');
                 // Load the main content
                 mainContent.classList.remove('hidden');
-                // Start the application initialization (HLS, Ticker, Tabs)
-                initializeApp();
+                // Start the core application setup
+                runApplication();
             }, 500); // Wait for fade-out
         }
 
@@ -295,17 +302,17 @@
             return urlParams.get(param);
         }
         
-        // --- HLS.js Implementation (Refactored) ---
+        // --- HLS.js Implementation (Refactored with Header Spoofing) ---
 
         /** Sets the HLS quality level and updates the button styles */
         function setQuality(levelIndex) {
-            if (Hls.isSupported() && hls) {
+            if (hls && Hls.isSupported()) {
                 hls.currentLevel = levelIndex;
                 currentQualityLevel = levelIndex;
                 updateQualityButtonStyle(levelIndex);
                 qualityPopup.classList.add('hidden');
                 const qualityText = levelIndex === -1 ? 'Auto' : `${hls.levels[levelIndex].height}p`;
-                showMessage(`क्वालिटी सेट की गई: ${qualityText}.`, 2000); // Shorter duration for success
+                showMessage(`क्वालिटी सेट की गई: ${qualityText}.`, false, 2000); // false for isError
             }
         }
 
@@ -313,12 +320,13 @@
         function updateQualityButtonStyle(selectedLevel) {
             const buttons = qualityOptions.querySelectorAll('button');
             buttons.forEach(button => {
-                button.classList.remove('bg-gray-500', 'font-bold', 'text-green-400', 'bg-gray-600');
+                button.classList.remove('bg-gray-500', 'font-bold', 'text-green-400');
                 button.classList.add('bg-gray-700', 'text-gray-200', 'hover:bg-gray-600');
             });
 
             // Find and style the selected button (Auto or specific resolution)
-            if (selectedLevel === -1 && buttons[0]) {
+            if (selectedLevel === -1 && buttons.length > 0) {
+                // 'Auto' is always the first button
                 buttons[0].classList.add('bg-gray-500', 'font-bold', 'text-green-400');
                 buttons[0].classList.remove('bg-gray-700', 'text-gray-200');
             } else if (selectedLevel !== -1) {
@@ -332,21 +340,36 @@
 
         /** Loads a new HLS stream, re-initializes HLS, and attaches listeners */
         function loadHlsStream(hlsUrl) {
-            // Destroy existing HLS instance to clean up listeners and state
+            if (!hlsUrl || typeof hlsUrl !== 'string') {
+                showMessage("स्ट्रीम URL अमान्य है। कृपया एक वैध लिंक चुनें।", true, 5000);
+                return;
+            }
+
+            // पुराने HLS instance को नष्ट करें
             if (hls instanceof Hls) {
                 hls.destroy();
             }
-            hls = new Hls(); // Recreate a fresh HLS instance
 
             if (Hls.isSupported()) {
+                // FanCode/Protected Streams के लिए, Hls को xhrSetup के साथ initialize करें
+                hls = new Hls({
+                    // xhrSetup का उपयोग करके Referer और User-Agent हेडर इंजेक्ट करें
+                    xhrSetup: function(xhr, url) {
+                        for (const header in REQUIRED_HLS_HEADERS) {
+                            xhr.setRequestHeader(header, REQUIRED_HLS_HEADERS[header]);
+                        }
+                        console.log(`[HLS Headers Applied] URL: ${url}`);
+                    }
+                }); 
+                
                 hls.loadSource(hlsUrl);
                 hls.attachMedia(video);
                 
                 // Clear quality options until the new manifest is parsed
                 qualityOptions.innerHTML = '';
                 currentQualityLevel = -1;
-
-                // 1. Re-attach MANIFEST_PARSED listener (Crucial for quality options)
+                
+                // HLS Events Listeners
                 hls.on(Hls.Events.MANIFEST_PARSED, function () {
                     const levels = hls.levels;
                     
@@ -354,7 +377,6 @@
 
                     // a. Add Auto option
                     const autoButton = document.createElement('button');
-                    // Start with active style
                     autoButton.className = 'w-full text-left px-2 py-1 rounded-md text-green-400 bg-gray-500 font-bold transition-colors'; 
                     autoButton.textContent = 'Auto';
                     autoButton.onclick = () => setQuality(-1);
@@ -367,35 +389,42 @@
                         const levelIndex = levels.findIndex(l => l.height === level.height && l.bitrate === level.bitrate);
                         
                         const button = document.createElement('button');
-                        // Start with inactive style
                         button.className = 'w-full text-left px-2 py-1 rounded-md text-gray-200 bg-gray-700 hover:bg-gray-600 transition-colors'; 
                         button.textContent = `${level.height}p`;
                         button.onclick = () => setQuality(levelIndex);
                         qualityOptions.appendChild(button);
                     });
                     
-                    // Set Auto as default selected style
+                    // Default to Auto quality and style
                     updateQualityButtonStyle(-1);
                 });
 
-                // 2. Re-attach ERROR listener (Crucial for error recovery)
+                // Error Listener (Added user-facing error messages for fatal issues)
                 hls.on(Hls.Events.ERROR, function (event, data) {
                     if (data.fatal) {
-                        // CORE CHANGE 2: Suppress all on-screen error popups, log to console only
-                        console.error(`HLS Fatal Error (On-screen message suppressed as requested): ${data.details}.`, data);
+                        console.error(`HLS Fatal Error: ${data.details}. Attempting recovery...`, data);
                         
-                        // Error recovery logic remains
+                        // User-facing message for fatal errors
+                        let errorMessage = "स्ट्रीम चलाने में गंभीर त्रुटि हुई।";
+
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
+                                errorMessage = "स्ट्रीम लोड नहीं हो पाई। नेटवर्क त्रुटि या स्ट्रीम लिंक अनुपलब्ध हो सकता है।";
+                                // Attempt to re-load the stream on network errors
                                 hls.startLoad();
                                 break;
                             case Hls.ErrorTypes.MEDIA_ERROR:
+                                errorMessage = "स्ट्रीम मीडिया त्रुटि। रिकवरी का प्रयास किया जा रहा है...";
                                 hls.recoverMediaError();
                                 break;
                             default:
+                                // For other fatal errors, destroy the instance
                                 hls.destroy();
                                 break;
                         }
+                        
+                        // Show the error to the user
+                        showMessage(errorMessage, true, 5000); // true for isError
                     }
                 });
 
@@ -404,51 +433,45 @@
                 video.src = hlsUrl;
                 video.play();
             } else {
-                // Suppress this generic error popup too.
                 console.error("Browser does not support HLS streaming.");
+                showMessage("आपका ब्राउज़र HLS स्ट्रीम का समर्थन नहीं करता है।", true, 5000);
             }
         }
         
         /** Called when a match thumbnail is clicked - loads the ad-free stream */
         function loadStream(url, title) {
             if (url) {
-                // Display success message briefly
-                showMessage(`स्ट्रीम लोड हो रही है: ${title}.`, 2000); 
-                
-                // CORE CHANGE 1: Update the URL in the browser history for sharing/refreshing
-                window.history.replaceState(null, '', `?url=${encodeURIComponent(url)}`);
+                // Security Fix: Removed window.history.replaceState to prevent SecurityError 
+                // in sandboxed environments (blob URL).
+
+                // Show a brief message that stream is loading
+                showMessage(`स्ट्रीम लोड हो रही है: ${title}.`, false, 2000); // false for isError
                 
                 loadHlsStream(url); 
             } else {
-                // Suppress this warning popup as well, log only
+                // Suppress visual errors for invalid URLs, log to console only
                 console.warn("Stream URL not available for this event.");
+                showMessage("इस इवेंट के लिए स्ट्रीम URL उपलब्ध नहीं है।", true, 3000); // true for isError
             }
         }
 
 
         // --- News Ticker Implementation ---
-        // ... (Same logic as before) ...
+        
+        /** Fix: This function is now simplified to only return the simulated data, 
+         * avoiding the 'Failed to parse URL' console error in the sandboxed environment.
+         */
         async function fetchUpdates() {
-            try {
-                const response = await fetch('./updates.json');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error("Error fetching updates.json. Falling back to simulated data:", error);
-                return {
-                    "last_updated": "October 17, 2025 (Simulated)",
-                    "headlines": [
-                        { "news": "सेंसेक्स ने 83,000 का ऐतिहासिक आंकड़ा पार किया, निवेशकों में जबरदस्त उत्साह।" },
-                        { "news": "दिल्ली-एनसीआर में अचानक मौसम ने करवट ली, कई इलाकों में बारिश का अलर्ट जारी।" },
-                        { "news": "महिला क्रिकेटर स्मृति मंधाना ने वनडे में सबसे तेज 5000 रन पूरे कर नया विश्व रिकॉर्ड बनाया।" },
-                        { "news": "आज रात 8 बजे से लाइव: भारत बनाम ऑस्ट्रेलिया टी20 सीरीज का निर्णायक मुकाबला।" },
-                        { "news": "सरकारी कर्मचारियों के लिए महंगाई भत्ता (DA) 4% बढ़ाया गया, अक्टूबर से लागू।" }
-                    ]
-                };
-            }
+            return {
+                "last_updated": "October 17, 2025 (Simulated)",
+                "headlines": [
+                    { "news": "सेंसेक्स ने 83,000 का ऐतिहासिक आंकड़ा पार किया, निवेशकों में जबरदस्त उत्साह।" },
+                    { "news": "दिल्ली-एनसीआर में अचानक मौसम ने करवट ली, कई इलाकों में बारिश का अलर्ट जारी।" },
+                    { "news": "महिला क्रिकेटर स्मृति मंधाना ने वनडे में सबसे तेज 5000 रन पूरे कर नया विश्व रिकॉर्ड बनाया।" },
+                    { "news": "आज रात 8 बजे से लाइव: भारत बनाम ऑस्ट्रेलिया टी20 सीरीज का निर्णायक मुकाबला।" },
+                    { "news": "सरकारी कर्मचारियों के लिए महंगाई भत्ता (DA) 4% बढ़ाया गया, अक्टूबर से लागू।" }
+                ]
+            };
         }
 
         /** Initializes and starts the News Ticker */
@@ -468,8 +491,8 @@
             }
         }
         
-        // --- Live Events Tabs Implementation (New) ---
-        // ... (Same logic as before) ...
+        // --- Live Events Tabs Implementation ---
+        
         function initializeTabs() {
             const tabsHeader = document.getElementById('tabs-header');
             tabsHeader.innerHTML = ''; 
@@ -479,36 +502,37 @@
                 const button = document.createElement('button');
                 button.id = `tab-${key}`;
                 button.textContent = config.name;
-                button.className = 'py-3 px-3 sm:px-4 text-base font-bold transition-colors duration-200 focus:outline-none relative';
+                // Default inactive style
+                button.className = 'py-3 px-3 sm:px-4 text-base font-bold transition-colors duration-200 focus:outline-none relative text-gray-400 hover:text-white hover:border-b-2 hover:border-gray-500';
 
                 button.onclick = () => switchTab(key);
                 tabsHeader.appendChild(button);
             }
+            // Load content for the default active tab
             switchTab(currentActiveTab);
         }
 
         async function switchTab(tabKey) {
             const oldTabKey = currentActiveTab;
-            if (tabKey !== oldTabKey) {
-                 // 1. Update UI for old tab
+            
+            // Hide old content and remove old active styles if switching
+            if (oldTabKey && document.getElementById(`tab-${oldTabKey}`)) {
                 document.getElementById(`tab-${oldTabKey}`).classList.remove('text-white', 'border-b-2', 'border-blue-400');
                 document.getElementById(`tab-${oldTabKey}`).classList.add('text-gray-400', 'hover:text-white', 'hover:border-b-2', 'hover:border-gray-500');
-                document.getElementById(TAB_CONFIG[oldTabKey].elementId).classList.add('hidden');
-                
-                // 2. Update active state and UI for new tab
-                currentActiveTab = tabKey;
-                
-                // 3. Fetch and render new content
-                await fetchAndRenderMatches(tabKey);
+                if (document.getElementById(TAB_CONFIG[oldTabKey].elementId)) {
+                    document.getElementById(TAB_CONFIG[oldTabKey].elementId).classList.add('hidden');
+                }
             }
+                
+            // Set new active state and show content
+            currentActiveTab = tabKey;
             
             document.getElementById(`tab-${tabKey}`).classList.add('text-white', 'border-b-2', 'border-blue-400');
             document.getElementById(`tab-${tabKey}`).classList.remove('text-gray-400', 'hover:text-white', 'hover:border-b-2', 'hover:border-gray-500');
             document.getElementById(TAB_CONFIG[tabKey].elementId).classList.remove('hidden');
 
-            if (tabKey === oldTabKey) {
-                await fetchAndRenderMatches(tabKey);
-            }
+            // Fetch and render content only if it's the first time or if data needs refresh
+            await fetchAndRenderMatches(tabKey);
         }
 
         async function fetchAndRenderMatches(tabKey) {
@@ -525,19 +549,7 @@
                     throw new Error(`Status: ${response.status}`);
                 }
                 
-                const text = await response.text();
-                if (!text) {
-                    console.warn(`Empty response for ${config.name}`);
-                    throw new Error("Empty response body.");
-                }
-                
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (e) {
-                    console.error("JSON Parse Error:", e);
-                    throw new Error("JSON data could not be parsed.");
-                }
+                const data = await response.json();
                 
                 contentElement.innerHTML = '';
                 config.renderer(data.matches || [], contentElement);
@@ -545,12 +557,12 @@
             } catch (error) {
                 console.error(`Error loading matches for ${config.name}:`, error);
                 contentElement.innerHTML = `<p class="col-span-full text-center text-red-400 py-8">
-                    Failed to load ${config.name} matches. (Data/Network Error).
-                    <br>कृपया पुष्टि करें कि GitHub Raw URL तक सीधी पहुँच काम करती है।
+                    सामग्री लोड करने में त्रुटि हुई: (नेटवर्क या JSON डेटा त्रुटि)।
                 </p>`;
             }
         }
-
+        
+        // --- Match Rendering ---
         function renderFancodeMatches(matches, containerElement) {
             if (matches.length === 0) {
                 containerElement.innerHTML = '<p class="col-span-full text-center text-gray-400 py-8">No live or upcoming Fancode matches available.</p>';
@@ -561,6 +573,7 @@
                 const card = document.createElement('div');
                 card.className = 'relative rounded-lg overflow-hidden bg-gray-800 shadow-lg hover:shadow-xl hover:ring-2 hover:ring-blue-500 transition-all duration-300 group cursor-pointer';
                 
+                // Use adfree_url as the primary stream link
                 card.onclick = () => loadStream(match.adfree_url, match.title);
 
                 const isLive = match.status.toUpperCase() === 'LIVE'; 
@@ -575,6 +588,7 @@
                     const date = new Date(dateString); 
                     
                     if (!isNaN(date.getTime())) { 
+                        // Show time in Indian locale format (e.g., 08:30 PM)
                         timeDisplay = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
                     }
                 } catch (e) {
@@ -602,7 +616,7 @@
                         <p class="text-sm font-semibold text-white mb-1 truncate" title="${match.title}">
                             ${match.title}
                         </p>
-                        <!-- Event detail -->
+                        <!-- Start time below title -->
                         <p class="text-xs text-gray-400">
                             <i class="fas fa-clock mr-1"></i> 
                             ${timeDisplay}
@@ -613,22 +627,33 @@
             });
         }
         
-        // --- Main App Initialization ---
-
-        function initializeApp() {
+        /** Starts the Ticker and Tabs setup */
+        function runApplication() {
             // 1. Start News Ticker (fetch from updates.json)
             startTicker();
 
             // 2. Initialize Tabs (Fancode matches)
             initializeTabs();
+        }
 
-            // 3. Load HLS Player (from URL parameter if available, as requested)
+        /** Checks if a shareable URL exists to bypass the initial popup, otherwise shows the popup. */
+        function checkInitialLoad() {
             const hlsUrl = getQueryParam('url');
+            
             if (hlsUrl) {
-                // If a URL is in the query, load it silently (no success message on refresh)
+                // शेयर करने योग्य URL मिला। पॉपअप को बायपास करें और मुख्य सामग्री दिखाएँ।
+                initialPopup.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                
+                // बाकी ऐप कंपोनेंट्स लोड करें (Ticker, Tabs)
+                runApplication(); 
+                
+                // स्ट्रीम तुरंत लोड करें (इसमें FanCode के लिए ज़रूरी हेडर Spoofing शामिल है)
                 loadHlsStream(hlsUrl);
+            } else {
+                // कोई URL नहीं मिला। पॉपअप दिखाएँ और उपयोगकर्ता के क्लिक का इंतज़ार करें।
+                initialPopup.classList.remove('hidden');
             }
-            // CORE CHANGE: Removed the warning/message if no URL is found, keeping it silent.
         }
         
         // Hide popups when clicking outside
@@ -644,6 +669,9 @@
                 toggleQualityPopup();
             }
         });
+
+        // App को शुरू करने के लिए पहली कॉल (window load पर)
+        window.onload = checkInitialLoad;
 
     </script>
 
