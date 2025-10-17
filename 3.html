@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CricSparx</title>
+    <!-- Font Awesome for Icons (Telegram, Question Mark, and Settings) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        :root {
+            --header-height: 50px; /* पतले हेडर की ऊंचाई */
+            --status-bar-height: 40px; /* न्यूज़ टिकर/कंट्रोल बार की ऊंचाई */
+            --primary-color: #f0f0f0;
+            --secondary-bg: #1a1a1a;
+            --link-color: #007bff;
+        }
+
+        body {
+            background-color: black;
+            color: var(--primary-color);
+            font-family: 'Inter', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            /* पूरी ऊंचाई का लेआउट, हॉरिजॉन्टल स्क्रॉल को रोकता है */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; 
+        }
+        
+        /* --- 1. पतला हेडर स्टाइलिंग --- */
+        #top-header {
+            height: var(--header-height);
+            width: 100%;
+            background-color: var(--secondary-bg);
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            box-sizing: border-box;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            z-index: 1000; 
+            position: relative;
+            flex-shrink: 0; /* यह सुनिश्चित करता है कि हेडर सिकुड़े नहीं */
+        }
+        
+        #header-title {
+            font-size: 1.25rem; 
+            font-weight: bold;
+            color: white;
+            margin-right: auto; 
+            cursor: default;
+        }
+
+        .header-icon {
+            font-size: 1.25rem;
+            margin-left: 15px;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            color: var(--primary-color);
+        }
+        .header-icon:hover {
+            color: #4CAF50;
+        }
+
+        /* --- 2. मुख्य सामग्री क्षेत्र (वीडियो + नियंत्रण) --- */
+        #main-content {
+            flex-grow: 1; 
+            width: 100%;
+            padding: 5px 5px 0 5px; /* साइड और टॉप मार्जिन */
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; 
+        }
+
+        #streaming-container {
+            flex-grow: 1; /* बची हुई ऊर्ध्वाधर जगह लेता है */
+            width: 100%;
+            display: flex;
+            margin-bottom: 5px; /* कंट्रोल बार के ऊपर जगह */
+        }
+
+        #videoPlayer {
+            width: 100%;
+            height: 100%; /* स्ट्रीमिंग कंटेनर की पूरी ऊंचाई भरता है */
+            object-fit: contain; /* सुनिश्चित करता है कि वीडियो कट न हो */
+            border-radius: 8px;
+            background-color: #000;
+        }
+
+        /* --- 3. कंट्रोल बार (न्यूज़ टिकर + सेटिंग्स आइकन) --- */
+        #control-bar {
+            width: 100%;
+            height: var(--status-bar-height);
+            display: flex;
+            align-items: center;
+            background-color: var(--secondary-bg);
+            border-radius: 8px;
+            box-sizing: border-box;
+            flex-shrink: 0; /* सुनिश्चित करता है कि यह सिकुड़े नहीं */
+            margin-bottom: 5px; /* स्क्रीन के निचले किनारे से मार्जिन */
+            border: 1px solid #333;
+        }
+
+        /* न्यूज़ टिकर स्टाइलिंग */
+        #news-ticker {
+            flex-grow: 1;
+            height: 100%;
+            padding: 0 10px;
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+            border-right: 1px solid #333;
+        }
+
+        #news-content {
+            display: inline-block;
+            position: absolute;
+            padding-left: 100%; /* राइट से शुरू करने के लिए */
+            color: #ffd700; /* आकर्षक रंग */
+            font-size: 0.9rem;
+            line-height: var(--status-bar-height); /* पाठ को लंबवत रूप से केंद्र में लाता है */
+            transform: translateX(0); /* शुरुआती स्थिति */
+            transition: none; /* JS द्वारा सेट किया जाता है */
+        }
+
+        /* सेटिंग्स आइकन (गियर) */
+        #settings-icon {
+            font-size: 1.4rem;
+            margin: 0 15px;
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        #settings-icon.active {
+            color: #4CAF50; /* जब खुला हो तो हरा */
+            transform: rotate(45deg);
+        }
+
+        /* --- 4. डिस्क्लेमर पॉपअप (हेडर के नीचे) --- */
+        #disclaimer-popup {
+            /* ... (पिछले कोड से स्टाइलिंग, बस position: absolute सुनिश्चित करें) ... */
+            position: absolute;
+            top: calc(var(--header-height) + 10px); 
+            right: 15px; 
+            width: 250px;
+            background-color: #333;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.95);
+            transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+            text-align: left;
+            font-size: 0.9rem;
+            border: 1px solid #555;
+        }
+
+        #disclaimer-popup.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+
+        #disclaimer-popup::before {
+            content: '';
+            position: absolute;
+            top: -10px; 
+            right: 10px; 
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 10px solid #333; 
+        }
+
+        /* --- 5. सेटिंग्स पॉपअप (कंट्रोल बार के ऊपर) --- */
+        #settings-modal {
+            position: absolute;
+            bottom: calc(var(--status-bar-height) + 15px); 
+            right: 15px; 
+            background-color: #2c2c2c;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            z-index: 9000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #settings-modal.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        #settings-modal select {
+            background-color: #444;
+            color: white;
+            border: 1px solid #666;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        #settings-modal label {
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+        
+        /* मोबाइल समायोजन */
+        @media (max-width: 600px) {
+            #header-title {
+                font-size: 1.1rem;
+            }
+            .header-icon, #settings-icon {
+                font-size: 1.1rem;
+                margin-left: 10px;
+            }
+            #disclaimer-popup {
+                width: 90%;
+                left: 5%;
+                right: 5%;
+                top: calc(var(--header-height) + 5px);
+            }
+            #disclaimer-popup::before {
+                right: 30px; 
+            }
+            #settings-modal {
+                right: 5px;
+            }
+            #news-ticker {
+                font-size: 0.8rem;
+            }
+        }
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
+</head>
+<body>
+
+    <!-- THIN HEADER START: Title and Icons -->
+    <header id="top-header">
+        <div id="header-title">CricSparx</div>
+        
+        <!-- Telegram Icon Link -->
+        <a href="https://t.me/Cricket_Sparx" target="_blank" class="header-icon" title="Join Telegram Channel">
+            <i class="fa-brands fa-telegram"></i>
+        </a>
+        
+        <!-- Question Mark Icon (Popup trigger) -->
+        <i class="fa-solid fa-circle-question header-icon" id="help-icon" title="Disclaimer"></i>
+    </header>
+    <!-- THIN HEADER END -->
+
+    <!-- Animated Disclaimer Popup (Top Right) -->
+    <div id="disclaimer-popup">
+        <p style="margin: 0; font-weight: bold;">Disclaimer:</p>
+        <p style="margin: 5px 0 0 0;">We do not host any contests or own content. These links are available publicly.</p>
+    </div>
+
+    <!-- MAIN CONTENT AREA START: Video Player and Controls -->
+    <div id="main-content">
+        <!-- Video Container fills space between header and control-bar -->
+        <div id="streaming-container">
+            <video id="videoPlayer" controls autoplay></video>
+        </div>
+        
+        <!-- CONTROL BAR START: News Ticker and Settings Icon (Bottom Right) -->
+        <div id="control-bar">
+            <!-- News Ticker (Right to Left Scroll) -->
+            <div id="news-ticker">
+                <span id="news-content">Loading latest headlines...</span>
+            </div>
+            
+            <!-- Settings Icon (Triggers Modal) -->
+            <i class="fa-solid fa-gear" id="settings-icon"></i>
+        </div>
+        <!-- CONTROL BAR END -->
+    </div>
+    <!-- MAIN CONTENT AREA END -->
+
+    <!-- Settings Modal (Bottom Right, Above Control Bar) -->
+    <div id="settings-modal">
+        <label for="quality">Select Quality: </label>
+        <select id="quality" onchange="changeQuality()">
+            <option value="-1" selected>Auto</option>
+        </select>
+    </div>
+
+    <script>
+        // --- Mock News Data (as requested) ---
+        const newsData = {
+            "last_updated": "October 16, 2025",
+            "headlines": [
+                { "news": "सेंसेक्स ने 83,000 का ऐतिहासिक आंकड़ा पार किया, निवेशकों में जबरदस्त उत्साह।" },
+                { "news": "दिल्ली-एनसीआर में अचानक मौसम ने करवट ली, कई इलाकों में बारिश का अलर्ट जारी।" },
+                { "news": "बिहार चुनाव के पहले चरण के लिए कई दिग्गजों ने आज नामांकन दाखिल किया।" },
+                { "news": "महिला क्रिकेटर स्मृति मंधाना ने वनडे में सबसे तेज 5000 रन पूरे कर नया विश्व रिकॉर्ड बनाया।" },
+                { "news": "एमसीएक्स पर सोने का भाव 1.27 लाख रुपये के नए ऑल टाइम हाई पर पहुंचा।" },
+                { "news": "पुनेरी पल्टन ने जयपुर पिंक पैंथर्स को हराकर प्रो कबड्डी लीग के टॉप-2 में जगह पक्की की।" },
+                { "news": "केदारनाथ यात्रा ने पिछले साल का रिकॉर्ड तोड़ा, 16.56 लाख से अधिक श्रद्धालुओं ने दर्शन किए।" },
+                { "news": "ट्रंप के टैरिफ पर आरबीआई गवर्नर का बयान: भारत की आर्थिक बुनियाद मजबूत, चिंता की जरूरत नहीं।" },
+                { "news": "भारतीय हॉकी टीम और पाकिस्तान के बीच मैच ड्रॉ रहा, हैंडशेक विवाद के बीच मुकाबला समाप्त।" },
+                { "news": "उत्तर प्रदेश में सरकारी योजनाओं में करोड़ों के कथित घोटाले पर आप सांसद संजय सिंह ने उठाए सवाल।" },
+                { "news": "एलजी इलेक्ट्रॉनिक्स इंडिया का आईपीओ खुला, ग्रे मार्केट में ₹145 का रिकॉर्ड तोड़ प्रीमियम दिखा।" },
+                { "news": "20,000 कर्मचारियों की छंटनी के बाद टीसीएस कंपनी के बाहर हंगामा, कर्मचारी यूनियन ने कार्रवाई की मांग की।" }
+            ]
+        };
+
+        // --- News Ticker Logic ---
+        function startNewsTicker(headlines) {
+            const newsContent = document.getElementById('news-content');
+            const newsTicker = document.getElementById('news-ticker');
+            
+            let currentIndex = 0;
+            const totalHeadlines = headlines.length;
+            const animationDuration = 7; // 7 seconds (fixed by user)
+
+            const runMarquee = () => {
+                const news = headlines[currentIndex].news;
+                // समाचार को स्पष्ट रूप से अलग करने के लिए सेपरेटर
+                newsContent.textContent = news + ' \u2022\u2022\u2022 '; 
+
+                // Wait for text width calculation (necessary for dynamic scrolling)
+                setTimeout(() => {
+                    const contentWidth = newsContent.offsetWidth;
+                    const containerWidth = newsTicker.offsetWidth;
+
+                    // 1. Reset position and transition
+                    newsContent.style.transition = 'none';
+                    // Start off-screen right
+                    newsContent.style.transform = `translateX(${containerWidth}px)`; 
+                    
+                    // 2. Start the animation
+                    setTimeout(() => {
+                        // Set transition duration
+                        newsContent.style.transition = `transform ${animationDuration}s linear`;
+                        // End position: contentWidth जितना लेफ्ट में मूव करें
+                        newsContent.style.transform = `translateX(-${contentWidth}px)`;
+                    }, 50);
+
+                    // 3. Advance to next headline after animation duration
+                    setTimeout(() => {
+                        currentIndex = (currentIndex + 1) % totalHeadlines;
+                        runMarquee();
+                    }, animationDuration * 1000 + 100); // 100ms बफर
+                }, 50); 
+            };
+
+            // Initial call
+            runMarquee();
+        }
+
+        // --- HLS and Quality Logic (Slightly Refactored) ---
+        const video = document.getElementById('videoPlayer');
+        const qualitySelector = document.getElementById('quality');
+        const hls = new Hls();
+
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        const hlsUrl = getQueryParam('url');
+        
+        if (hlsUrl) {
+            if (Hls.isSupported()) {
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(video);
+
+                hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                    qualitySelector.innerHTML = '<option value="-1" selected>Auto</option>'; 
+                    const levels = hls.levels;
+                    levels.forEach((level, index) => {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = `${level.height}p`; 
+                        qualitySelector.appendChild(option);
+                    });
+                });
+
+                hls.on(Hls.Events.ERROR, function (event, data) {
+                    if (data.fatal) {
+                        console.error('HLS Fatal Error:', data.type, data.details);
+                    }
+                });
+
+                // Global function for quality change
+                window.changeQuality = function() {
+                    const quality = parseInt(qualitySelector.value);
+                    if (quality === -1) {
+                        hls.currentLevel = -1;
+                    } else {
+                        hls.currentLevel = quality;
+                    }
+                }
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = hlsUrl;
+            }
+        } else {
+            console.error("No URL provided.");
+            const container = document.getElementById('streaming-container');
+            container.innerHTML = '<p style="color: red; margin: auto; text-align: center;">Error: No HLS URL provided. Please check the address bar and include `?url=your_hls_link.m3u8`.</p>';
+        }
+
+        // --- Icon/Modal Logic ---
+
+        // Disclaimer Popup Logic
+        const helpIcon = document.getElementById('help-icon');
+        const disclaimerPopup = document.getElementById('disclaimer-popup');
+        let popupTimeout;
+
+        function toggleDisclaimerPopup() {
+            disclaimerPopup.classList.toggle('visible');
+            settingsModal.classList.remove('visible'); // Close settings if opening disclaimer
+            settingsIcon.classList.remove('active');
+
+            clearTimeout(popupTimeout);
+            if (disclaimerPopup.classList.contains('visible')) {
+                popupTimeout = setTimeout(() => {
+                    disclaimerPopup.classList.remove('visible');
+                }, 5000); 
+            }
+        }
+        helpIcon.addEventListener('click', toggleDisclaimerPopup);
+
+        // Settings Modal Logic
+        const settingsIcon = document.getElementById('settings-icon');
+        const settingsModal = document.getElementById('settings-modal');
+
+        settingsIcon.addEventListener('click', () => {
+            settingsModal.classList.toggle('visible');
+            settingsIcon.classList.toggle('active');
+            disclaimerPopup.classList.remove('visible'); // Close disclaimer if opening settings
+            clearTimeout(popupTimeout);
+        });
+
+        // Hide all popups if user clicks anywhere else
+        document.addEventListener('click', (event) => {
+            const isClickInsideDisclaimer = disclaimerPopup.contains(event.target) || helpIcon.contains(event.target);
+            const isClickInsideSettings = settingsModal.contains(event.target) || settingsIcon.contains(event.target);
+            
+            if (!isClickInsideDisclaimer && disclaimerPopup.classList.contains('visible')) {
+                clearTimeout(popupTimeout);
+                disclaimerPopup.classList.remove('visible');
+            }
+            if (!isClickInsideSettings && settingsModal.classList.contains('visible')) {
+                settingsModal.classList.remove('visible');
+                settingsIcon.classList.remove('active');
+            }
+        });
+
+        // Function to open Telegram channel
+        window.joinTelegram = function() {
+            window.open('https://t.me/Cricket_Sparx', '_blank');
+        }
+
+        // Start Ticker when the window loads
+        window.addEventListener('load', () => {
+            startNewsTicker(newsData.headlines);
+        });
+    </script>
+
+</body>
+</html>
